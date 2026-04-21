@@ -16,6 +16,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.graphics.shapes import Drawing, Rect, String, Line, Circle
+from reportlab.graphics.charts.piecharts import Pie
 
 app = FastAPI()
 
@@ -79,6 +81,9 @@ async def detect_columns(file: UploadFile = File(...)):
             elif any(k in c for k in ["simulation", "sim", "course", "scenario", "assignment"]):
                 if "simulation" not in mapping:
                     mapping["simulation"] = col
+            elif any(k in c for k in ["completed_client", "status_client", "done_client"]):
+                if "completed_client" not in mapping:
+                    mapping["completed_client"] = col
             elif any(k in c for k in ["completed", "status", "done", "finish"]):
                 if "completed_user" not in mapping:
                     mapping["completed_user"] = col
@@ -218,48 +223,54 @@ async def evaluate_stream(
     setup_data: Optional[str] = Form(None)
 ):
     # ── Parse inputs (same as /api/evaluate) ──────────────────
-    rubric_text = None
-    if rubric and rubric.filename:
-        rubric_contents = await rubric.read()
-        rubric_text = rubric_contents.decode("utf-8")
-        rubric_path = os.path.join(os.path.dirname(__file__), "rubric.md")
-        with open(rubric_path, "w") as f:
-            f.write(rubric_text)
-    else:
-        rubric_text = load_rubric()
+    try:
+        rubric_text = None
+        if rubric and rubric.filename:
+            rubric_contents = await rubric.read()
+            rubric_text = rubric_contents.decode("utf-8")
+            rubric_path = os.path.join(os.path.dirname(__file__), "rubric.md")
+            with open(rubric_path, "w") as f:
+                f.write(rubric_text)
+        else:
+            rubric_text = load_rubric()
 
-    def parse_json_field(s):
-        try:
-            return json.loads(s) if s else None
-        except Exception:
-            return None
+        def parse_json_field(s):
+            try:
+                return json.loads(s) if s else None
+            except Exception:
+                return None
 
-    sel_u    = parse_json_field(selected_u_indicators)
-    sel_c    = parse_json_field(selected_c_indicators)
-    desc_map = parse_json_field(rubric_desc_map) or {}
-    if not sel_u and not sel_c:
-        legacy = parse_json_field(selected_indicators)
-        if legacy:
-            sel_u = legacy
-            sel_c = legacy
+        sel_u    = parse_json_field(selected_u_indicators)
+        sel_c    = parse_json_field(selected_c_indicators)
+        desc_map = parse_json_field(rubric_desc_map) or {}
+        if not sel_u and not sel_c:
+            legacy = parse_json_field(selected_indicators)
+            if legacy:
+                sel_u = legacy
+                sel_c = legacy
 
-    col_map = parse_json_field(column_mapping)
-    setup   = parse_json_field(setup_data)
+        col_map = parse_json_field(column_mapping)
+        setup   = parse_json_field(setup_data)
 
-    contents = await file.read()
-    rows = parse_upload_to_rows(contents, file.filename)
-    if not rows:
-        async def err_gen():
-            yield f"data: {json.dumps({'type':'error','message':'No data found in file'})}\n\n"
-        return StreamingResponse(err_gen(), media_type="text/event-stream")
+        contents = await file.read()
+        rows = parse_upload_to_rows(contents, file.filename)
+        if not rows:
+            async def err_gen():
+                yield f"data: {json.dumps({'type':'error','message':'No data found in file'})}\n\n"
+            return StreamingResponse(err_gen(), media_type="text/event-stream")
 
-    if col_map:
-        inv_map = {v: k for k, v in col_map.items()}
-        mapped = []
-        for row in rows:
-            new_row = {inv_map.get(col.strip(), col.strip()): val for col, val in row.items()}
-            mapped.append(new_row)
-        rows = mapped
+        if col_map:
+            inv_map = {v: k for k, v in col_map.items()}
+            mapped = []
+            for row in rows:
+                new_row = {inv_map.get(col.strip(), col.strip()): val for col, val in row.items()}
+                mapped.append(new_row)
+            rows = mapped
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        async def parse_err_gen():
+            yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+        return StreamingResponse(parse_err_gen(), media_type="text/event-stream")
 
     total = len(rows)
     print(f"\nStreaming evaluation — {total} participants — {MAX_CONCURRENT} parallel")
@@ -634,47 +645,144 @@ async def export_cohort_pdf(request: dict):
     story.append(kpi_table)
     story.append(Spacer(1, 16))
 
-    # ── Score Distribution ──
+    # ── Completion Status Chart ──
+    total_p = kpis.get("total", 0) or 0
+    completed_p = kpis.get("completed", 0) or 0
+    if total_p > 0:
+        story.append(Paragraph("Completion Status", head_style))
+        incomplete_p = max(total_p - completed_p, 0)
+        pct_comp = round(completed_p / total_p * 100)
+        cw, ch = 504, 160
+        cd = Drawing(cw, ch)
+        pie = Pie()
+        pie.x = 30
+        pie.y = 20
+        pie.width = 120
+        pie.height = 120
+        pie.data = [max(completed_p, 0.001), max(incomplete_p, 0.001)]
+        pie.slices[0].fillColor = colors.HexColor('#22c55e')
+        pie.slices[1].fillColor = colors.HexColor('#e2e8f0')
+        pie.slices.strokeColor = colors.white
+        pie.slices.strokeWidth = 2
+        cd.add(pie)
+        # White circle overlay to create donut effect
+        cx, cy = 30 + 60, 20 + 60
+        cd.add(Circle(cx, cy, 36, fillColor=colors.white, strokeColor=colors.white, strokeWidth=1))
+        cd.add(String(cx, cy + 6, f"{pct_comp}%", fontSize=14, fontName='Helvetica-Bold',
+                      textAnchor='middle', fillColor=colors.HexColor('#0f172a')))
+        cd.add(String(cx, cy - 10, 'Complete', fontSize=8, fontName='Helvetica',
+                      textAnchor='middle', fillColor=colors.HexColor('#64748b')))
+        # Legend
+        lx = 185
+        cd.add(Rect(lx, 95, 12, 12, fillColor=colors.HexColor('#22c55e'), strokeColor=None))
+        cd.add(String(lx + 16, 97, f"Completed: {completed_p}", fontSize=9,
+                      textAnchor='start', fillColor=colors.HexColor('#334155')))
+        cd.add(Rect(lx, 74, 12, 12, fillColor=colors.HexColor('#e2e8f0'),
+                    strokeColor=colors.HexColor('#cbd5e1'), strokeWidth=0.5))
+        cd.add(String(lx + 16, 76, f"Not Completed: {incomplete_p}", fontSize=9,
+                      textAnchor='start', fillColor=colors.HexColor('#334155')))
+        story.append(cd)
+        story.append(Spacer(1, 12))
+
+    # ── Score Distribution Chart ──
     if distribution:
         story.append(Paragraph("Score Distribution", head_style))
-        dist_data = [["Level", "Label", "Count", "Percentage"]]
-        for d in distribution:
-            dist_data.append([str(d.get("level","")), d.get("label",""), str(d.get("count",0)), f"{d.get('pct',0)}%"])
-        dist_table = Table(dist_data, colWidths=[0.6*inch, 1.2*inch, 0.8*inch, 1.2*inch])
-        dist_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,-1), 9),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
-            ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ]))
-        story.append(dist_table)
-        story.append(Spacer(1, 16))
+        level_colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
+        counts = [d.get("count", 0) for d in distribution]
+        labels = [d.get("label", f"Level {d.get('level','')}") for d in distribution]
+        pcts = [d.get("pct", 0) for d in distribution]
+        max_count = max(counts) if any(c > 0 for c in counts) else 1
 
-    # ── Indicator Averages ──
+        cw, ch = 504, 200
+        bar_area_h = 130
+        bar_w = 70
+        gap = 24
+        left_pad = 36
+        bottom_pad = 40
+        bd = Drawing(cw, ch)
+
+        # Y-axis grid lines
+        for tick in [0.25, 0.5, 0.75, 1.0]:
+            gy = bottom_pad + int(tick * bar_area_h)
+            bd.add(Line(left_pad - 4, gy, left_pad + 4*(bar_w + gap), gy,
+                        strokeColor=colors.HexColor('#e2e8f0'), strokeWidth=0.5))
+            bd.add(String(left_pad - 6, gy - 3, str(int(tick * max_count)),
+                          fontSize=6.5, textAnchor='end', fillColor=colors.HexColor('#94a3b8')))
+
+        for i, (cnt, clr, lbl, pct) in enumerate(zip(counts, level_colors, labels, pcts)):
+            bh = int(cnt / max_count * bar_area_h) if max_count else 0
+            bx = left_pad + i * (bar_w + gap)
+            by = bottom_pad
+            # Bar background
+            bd.add(Rect(bx, by, bar_w, bar_area_h,
+                        fillColor=colors.HexColor('#f8fafc'), strokeColor=None))
+            # Colored bar
+            if bh > 0:
+                bd.add(Rect(bx, by, bar_w, bh,
+                            fillColor=colors.HexColor(clr), strokeColor=None))
+            # Count + pct label above bar
+            bd.add(String(bx + bar_w / 2, by + max(bh, 4) + 5,
+                          f"{cnt} ({pct}%)", fontSize=8, fontName='Helvetica-Bold',
+                          textAnchor='middle', fillColor=colors.HexColor('#0f172a')))
+            # Level label below bar
+            bd.add(String(bx + bar_w / 2, by - 14, lbl, fontSize=7.5,
+                          textAnchor='middle', fillColor=colors.HexColor('#64748b')))
+
+        story.append(bd)
+        story.append(Spacer(1, 12))
+
+    # ── Indicator Averages Chart ──
     if indicator_averages:
         story.append(Paragraph("Indicator Averages", head_style))
-        ind_data = [["Indicator ID", "Session", "Avg Score", "Indicator Name"]]
-        for row in indicator_averages:
-            avg_val = f"{row['avg']:.2f}" if row.get("avg") is not None else "N/A"
-            ind_data.append([row.get("id",""), row.get("session",""), avg_val, row.get("name","")])
-        ind_table = Table(ind_data, colWidths=[0.9*inch, 1.6*inch, 0.9*inch, 3.6*inch])
-        ind_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,-1), 8.5),
-            ('ALIGN', (0,0), (2,-1), 'CENTER'),
-            ('ALIGN', (3,0), (-1,-1), 'LEFT'),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
-            ('INNERGRID', (0,0), (-1,-1), 0.3, colors.HexColor('#e2e8f0')),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
-            ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-            ('LEFTPADDING', (0,0), (-1,-1), 4), ('RIGHTPADDING', (0,0), (-1,-1), 4),
-        ]))
-        story.append(ind_table)
+        bar_h = 14
+        gap = 7
+        max_val = 4.0
+        label_w = 150
+        bar_max_w = 240
+        val_w = 40
+        total_cw = label_w + bar_max_w + val_w + 10
+        total_ch = (bar_h + gap) * len(indicator_averages) + 24
+
+        ind_d = Drawing(total_cw, total_ch)
+        score_colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
+
+        for i, row in enumerate(reversed(indicator_averages)):
+            y = 12 + i * (bar_h + gap)
+            avg = row.get("avg") or 0
+            bw = int(avg / max_val * bar_max_w)
+            # Pick color based on avg quartile
+            cidx = min(int(avg / max_val * 4), 3) if avg > 0 else 0
+            clr = score_colors[cidx]
+
+            # Background track
+            ind_d.add(Rect(label_w, y, bar_max_w, bar_h,
+                           fillColor=colors.HexColor('#f1f5f9'), strokeColor=None))
+            # Value bar
+            if bw > 0:
+                ind_d.add(Rect(label_w, y, bw, bar_h,
+                               fillColor=colors.HexColor(clr), strokeColor=None))
+            # Indicator label (truncated)
+            name = row.get("name") or row.get("id", "")
+            if len(name) > 26:
+                name = name[:25] + "…"
+            sess = row.get("session", "")
+            label_text = f"{name} ({sess})" if sess else name
+            if len(label_text) > 30:
+                label_text = label_text[:29] + "…"
+            ind_d.add(String(label_w - 5, y + 3, label_text, fontSize=6.5,
+                             textAnchor='end', fillColor=colors.HexColor('#334155')))
+            # Numeric value
+            avg_str = f"{avg:.2f}" if avg else "0.00"
+            ind_d.add(String(label_w + bw + 5, y + 3, avg_str, fontSize=7,
+                             textAnchor='start', fillColor=colors.HexColor('#334155')))
+
+        # Scale ticks at bottom
+        for tick_val in [1, 2, 3, 4]:
+            tx = label_w + int(tick_val / max_val * bar_max_w)
+            ind_d.add(String(tx, 3, str(tick_val), fontSize=6, textAnchor='middle',
+                             fillColor=colors.HexColor('#94a3b8')))
+
+        story.append(ind_d)
         story.append(Spacer(1, 16))
 
     # ── AI Cohort Summary ──
@@ -693,7 +801,11 @@ async def export_cohort_pdf(request: dict):
         canvas.drawRightString(letter[0] - 0.75*inch, 0.4*inch, f"Page {doc.page}")
         canvas.restoreState()
 
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    try:
+        doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({"status": "error", "message": f"PDF build failed: {e}"})
     buffer.seek(0)
     return StreamingResponse(
         buffer, media_type="application/pdf",
