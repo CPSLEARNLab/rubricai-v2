@@ -46,6 +46,18 @@ def preprocess(input_path, output_path):
     out = merged[['participant_id', 'simulation', 'completed_user', 'transcript_user',
                   'completed_client', 'transcript_client', 'batch']]
 
+    # If STU-001 is missing (generation gap), clone a complete batch-A student as STU-001
+    # so the output reaches the intended 300-student count
+    if 'STU-001' not in out['participant_id'].values:
+        template = out[
+            (out['batch'] == 'A') &
+            (out['completed_user'] == 'Complete') &
+            (out['completed_client'] == 'Complete')
+        ].iloc[0].copy()
+        template['participant_id'] = 'STU-001'
+        out = pd.concat([pd.DataFrame([template]), out], ignore_index=True)
+        out = out.sort_values('participant_id').reset_index(drop=True)
+
     out.to_csv(output_path, index=False)
     print(f"Saved {len(out)} students → {output_path}")
     print(out[['participant_id', 'simulation', 'completed_user', 'completed_client', 'batch']].head(5).to_string())

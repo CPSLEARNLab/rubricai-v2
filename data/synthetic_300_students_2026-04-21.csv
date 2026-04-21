@@ -1,4 +1,215 @@
 participant_id,simulation,completed_user,transcript_user,completed_client,transcript_client,batch
+STU-001,sunrise_cafe,Complete,"[Agent]: Okay Jamie, before we get started, can you remind me what the client challenge is? What's going on at Sunrise Café?
+
+[User]: Um. So like... the café. They want more customers? I think it's like people aren't coming back or something.
+
+[Agent]: Close enough. And what would success look like for this interview — how would you know it went well?
+
+[User]: I don't know. Like if I ask all my questions I guess.
+
+[Agent]: Got it. And how confident are you feeling right now — on a scale of 1 to 5 — about asking good questions?
+
+[User]: Um maybe like a 3. I wrote some down so.
+
+[Agent]: Okay. And how confident are you about actually understanding the problem by the end?
+
+[User]: Like a 2. I don't really know what the problem is yet.
+
+[Agent]: And overall readiness to do the interview?
+
+[User]: 2. I'm kind of nervous.
+
+[Agent]: That's okay. Can you tell me the three questions you're planning to ask?
+
+[User]: Okay so um. First one is like do you like the café. And then um... is the food good. And then I had one more... oh, would you come back.
+
+[Agent]: Alright. You're about to begin the customer interview. I'll now play Jordan.
+
+[User]: Hi. Um. I'm Jamie. I'm doing a project.
+
+[Agent]: Oh okay, hi. Nice to meet you. What kind of project?
+
+[User]: It's like a school thing. About the café. Okay so um — do you like Sunrise Café?
+
+[Agent]: I mean, I've been there a few times. It's kind of a mixed bag, honestly.
+
+[User]: Okay. Is the food good?
+
+[Agent]: The food is... it's fine. Sometimes it's really good, sometimes not so much. It kind of depends.
+
+[User]: Okay. Um. Would you come back?
+
+[Agent]: Hmm. Probably, yeah. Maybe. I'm not totally sure.
+
+[User]: Okay. Um. [pause] Do you think they should fix something?
+
+[Agent]: Fix something? Like what do you mean?
+
+[User]: Like I don't know, what do YOU think they should change?
+
+[Agent]: Oh, I mean... there were a few things that bothered me. The wait was kind of long last time. And there was this thing with the ordering that was confusing.
+
+[User]: So the wait was long?
+
+[Agent]: Yeah, it took a while. Like we waited maybe fifteen minutes just to order.
+
+[User]: Oh. [pause] Do you like the seating?
+
+[Agent]: The seating? I mean it was okay I guess. A little cramped maybe.
+
+[User]: Yeah. Um. [to someone off to the side] What? No I'm doing — [back to Jordan] Sorry. Um. Do you — wait what was I saying.
+
+[Agent]: You were asking about seating I think.
+
+[User]: Right yeah. Was the seating okay?
+
+[Agent]: I mean it was alright. Kind of tight. But whatever.
+
+[User]: Okay. [long pause] Um. Do you like the coffee there?
+
+[Agent]: It's decent. My order got messed up once though, which was kind of annoying.
+
+[User]: Oh that's bad. Um. [pause] I think I asked everything. I don't have more questions.
+
+[Agent]: Oh, okay. Did you want to know anything else about my experience?
+
+[User]: Um. Do you think it's a good café overall?
+
+[Agent]: I mean it has potential. There's definitely stuff that could be better. The confusion when I walked in was probably the biggest thing honestly.
+
+[User]: Okay cool. [pause] I think we're done. Thanks.
+
+[Agent]: Sure. Good luck with your project.
+
+[User]: [post-interview] Um so the most important thing I learned is that the wait is long.
+
+[Agent]: What would you do differently next time?
+
+[User]: I would bring more questions. I kind of ran out.
+
+[Agent]: What do you think you did well?
+
+[User]: I asked about the food and stuff. And I didn't forget to say hi.
+
+[Agent]: And now let's do your post-interview confidence ratings. Same three questions — 1 to 5. How confident do you feel about the questions you asked?
+
+[User]: Like a 2. I don't think they were that good.
+
+[Agent]: How well do you understand the problem now?
+
+[User]: Hmm. Like a 2 still. I know the wait is long but I don't really know why people don't come back.
+
+[Agent]: And overall, how do you feel about how the interview went?
+
+[User]: Like a 1 and a half. I got distracted and I feel like I didn't really find out much.",Complete,"[Agent]: Okay so, um, hi. I'm Jamie. I'm doing the, like, the café thing. For school.
+
+[User]: Hi Jamie, I'm Diana, I manage the café. Thanks for coming in. So you talked to some of our customers?
+
+[Agent]: Yeah. Yeah I did. Like a few of them.
+
+[User]: Great — what did you find out?
+
+[Agent]: Um. So. They said stuff. Like, some people said things were good and some people said things were bad. It was like... mixed I guess.
+
+[User]: Okay... can you tell me a bit more about what specifically they said?
+
+[Agent]: Yeah so one lady said she didn't like it. And then another person said they come here a lot. And there was this one guy who was talking about the, like, the thing with the — I forgot what he said exactly. Something about the line I think. Or maybe the food. I don't have my notes.
+
+[User]: Oh, you don't have your notes with you?
+
+[Agent]: I left them at school. But I remember most of it. Kind of.
+
+[User]: Okay, that's alright. So it sounds like there were some complaints — do you know what people were most unhappy about?
+
+[Agent]: Um. I think just like... stuff? Like the experience wasn't great for some of them. One person was kind of annoyed.
+
+[User]: Annoyed about what specifically?
+
+[Agent]: I don't know, she just seemed annoyed. Like when I was talking to her she was kind of like... I don't know. She didn't really say. Or maybe she did and I didn't write it down.
+
+[User]: I see. Well — what do you think we should fix?
+
+[Agent]: That's kind of what I was gonna ask you actually. Like what do YOU think the problem is? Because you work here so you probably know better than me.
+
+[User]: Well, you're the one who talked to the customers, so I was hoping you could tell me what they said.
+
+[Agent]: Oh. Right. Um. Okay so — do you guys have a lot of customers? Like is it busy?
+
+[User]: We do pretty well, yes. Why do you ask?
+
+[Agent]: I don't know I was just wondering. One person said it was busy when they came in.
+
+[User]: Okay. Was busyness something that came up as a problem for them?
+
+[Agent]: Maybe? I think so. Or maybe they just mentioned it. I'm not sure if it was like a problem or just a thing they said.
+
+[User]: Did you ask them follow-up questions when they mentioned the busyness?
+
+[Agent]: Um. I said 'oh okay' and then I asked them the next question on my sheet.
+
+[User]: What were the questions on your sheet?
+
+[Agent]: Um there were like five of them. I asked if they liked the café. And if they would come back. And I think one about the food.
+
+[User]: Those sound like yes-or-no questions. Did people mostly give you short answers?
+
+[Agent]: Yeah pretty much. Some of them were like 'yeah' or 'it's fine' and stuff like that.
+
+[User]: Did you ever ask them to explain more when they said something vague like 'it's fine'?
+
+[Agent]: Not really. I just kept going because I had a lot of questions to get through.
+
+[User]: I see. Jamie, what would you say is the main takeaway from your interviews? If you had to tell me one thing the customers want us to improve?
+
+[Agent]: Um. Probably just like... make it better? Like make the experience better. People want it to be better.
+
+[User]: Better in what way though — the food, the service, the environment?
+
+[Agent]: Maybe all of them? I'm not sure. I think different people wanted different things.
+
+[User]: Can you give me an example of what one specific person wanted?
+
+[Agent]: Um. The one lady said something about — I think she said she comes in the morning and it's, like, a lot going on. So maybe the morning is a problem. I think that's what she was saying.
+
+[User]: So it's busy in the morning and that's difficult for customers?
+
+[Agent]: Yeah. I think. She didn't really say why it was difficult. I didn't ask.
+
+[User]: Okay. Is there anything else from the interviews you wanted to share with me?
+
+[Agent]: Um. I think one person said they like the coffee. So that's good I guess. And someone said the tables were kind of small. That's about all I remember.
+
+[User]: Alright. So Jamie — based on what you heard, what would you recommend we do?
+
+[Agent]: Um. I feel like you should probably just ask the customers yourself? Like do a survey or something. Because I don't think I got enough information. I'm not really sure what they meant by most of the stuff they said.
+
+[User]: Well, that's a little bit what your interviews were for. Do you feel like the interviews went the way you expected?
+
+[Agent]: Not really. It was harder than I thought. The people didn't really say that much and I didn't know what to say back to them so I just went to the next question.
+
+[User]: That happens. Do you think there's anything you might do differently next time?
+
+[Agent]: Maybe bring my notes. And maybe have better questions.
+
+[User]: Okay. Well, thank you for coming in Jamie.
+
+[Agent]: Yeah. Sorry I don't have more. I can try again if you want.
+
+---
+
+REFLECTION
+
+[User]: So Jamie — stepping back, how do you think that went overall?
+
+[Agent]: Um. Not great. I feel like I didn't really have much to say and she kept asking me things I didn't know the answers to. I felt kind of dumb.
+
+[User]: What was the hardest part about presenting your findings?
+
+[Agent]: Like... I didn't really have findings I guess. I just had stuff people said and I didn't know how to make it into a thing. Like a point or whatever. I don't really know what I was supposed to say.
+
+[User]: If you had to do this again, what would you change?
+
+[Agent]: I would write stuff down better. And maybe ask different questions. Mine were kind of just yes or no so people didn't say a lot. And I didn't really know what to do when they said 'it's fine' so I just moved on. I probably should've asked more.",A
 STU-002,sunrise_cafe,Incomplete,,Complete,"[Agent]: Okay so, um, Diana? Hi. I'm Sam. I'm, like, the student from the, um, the program? We did the interviews.
 
 [User]: Hi Sam, yes, come on in. Thanks for coming by. So you've been talking to some of our customers?
