@@ -10,14 +10,22 @@ def preprocess(input_path, output_path):
         [['student_id', 'classroom', 'scenario', 'level', 'transcript']]
         .rename(columns={'transcript': 'transcript_user'})
     )
+    # pull classroom+scenario from CC rows too, so CC-only students aren't dropped
     cc = (
         df[df['sim_type'] == 'client_conversation']
-        [['student_id', 'transcript']]
-        .rename(columns={'transcript': 'transcript_client'})
+        [['student_id', 'classroom', 'scenario', 'transcript']]
+        .rename(columns={
+            'transcript': 'transcript_client',
+            'classroom': 'classroom_cc',
+            'scenario': 'scenario_cc',
+        })
     )
 
-    # left join keeps students who at least completed the stakeholder interview
-    merged = si.merge(cc, on='student_id', how='left')
+    merged = si.merge(cc, on='student_id', how='outer')
+    # coalesce classroom/scenario from SI first, fall back to CC for CC-only students
+    merged['classroom'] = merged['classroom'].combine_first(merged['classroom_cc'])
+    merged['scenario']  = merged['scenario'].combine_first(merged['scenario_cc'])
+    merged.drop(columns=['classroom_cc', 'scenario_cc'], inplace=True)
 
     merged['participant_id'] = merged['student_id']
     merged['simulation'] = (
