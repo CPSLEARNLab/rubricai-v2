@@ -1789,6 +1789,9 @@ function donutSVG(comp,inc){
 function setSummaryBatch(b){
   activeSummaryBatch=b;
   renderSum();
+  // reset summary so it's clear it's stale for the new batch
+  const el=document.getElementById('cohort-summary-text');
+  if(el&&cohortSummary) el.textContent='Click "Regenerate" to generate summary for '+(b?'Class '+b:'full cohort')+'.';
 }
 function renderSum(){
   if(!results.length)return;
@@ -1925,16 +1928,19 @@ function renderSum(){
 async function generateCohortSummary(){
   if(!results.length)return;
   const el=document.getElementById('cohort-summary-text');
-  if(el) el.textContent='Generating AI cohort summary...';
-  const commU=results.map(s=>s.comm_user).filter(v=>v!=null);
-  const ctU=results.map(s=>s.ct_user).filter(v=>v!=null);
+  const batchLabel=activeSummaryBatch?`Class ${activeSummaryBatch}`:'full cohort';
+  if(el) el.textContent=`Generating AI summary for ${batchLabel}...`;
+  const data=activeSummaryBatch?results.filter(s=>(s.batch||'')===activeSummaryBatch):results;
+  const commU=data.map(s=>s.comm_user).filter(v=>v!=null);
+  const ctU=data.map(s=>s.ct_user).filter(v=>v!=null);
   const avgCU=commU.length?(commU.reduce((a,b)=>a+b,0)/commU.length).toFixed(2):'N/A';
   const avgCTU=ctU.length?(ctU.reduce((a,b)=>a+b,0)/ctU.length).toFixed(2):'N/A';
-  const prompt=`Write a concise 3-4 sentence analytical cohort summary for a researcher/educator. 
-${results.length} participants evaluated. 
-Avg ${setupData.sess1||'User Interview'} Communication: ${avgCU}/4.0. 
-Avg Critical Thinking: ${avgCTU}/4.0. 
-Simulations: ${[...new Set(results.map(s=>s.simulation))].join(', ')}.
+  const prompt=`Write a concise 3-4 sentence analytical cohort summary for a researcher/educator.
+Group: ${batchLabel}.
+${data.length} participants evaluated.
+Avg ${setupData.sess1||'User Interview'} Communication: ${avgCU}/4.0.
+Avg Critical Thinking: ${avgCTU}/4.0.
+Simulations: ${[...new Set(data.map(s=>s.simulation))].join(', ')}.
 ${setupData.course?'Course: '+setupData.course:''}
 ${setupData.cohort?'Cohort: '+setupData.cohort:''}
 Be specific, analytical, and use academic/research tone. Do not use markdown formatting symbols like ** or ##. Write in plain sentences only.`;
@@ -2055,21 +2061,24 @@ async function exportCohortPDF(){
     const avg=arr=>arr.length?parseFloat((arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2)):null;
     const uInds=U_IND.filter(i=>selectedInds.has(i));
     const cInds=C_IND.filter(i=>selectedInds.has(i));
-    const allScoreVals=results.flatMap(s=>[...uInds.map(i=>s[i+'_user_score']),...cInds.map(i=>s[i+'_client_score'])].filter(v=>v));
+    // use batch-filtered data if a class is selected
+    const data=activeSummaryBatch?results.filter(s=>(s.batch||'')===activeSummaryBatch):results;
+    const batchLabel=activeSummaryBatch?`Class ${activeSummaryBatch}`:'';
+    const allScoreVals=data.flatMap(s=>[...uInds.map(i=>s[i+'_user_score']),...cInds.map(i=>s[i+'_client_score'])].filter(v=>v));
     const payload={
-      setup_data:setupData,
+      setup_data:{...setupData,...(batchLabel?{cohort:batchLabel}:{})},
       kpis:{
-        total:results.length,
-        completed:results.filter(s=>s.completed===1).length,
-        avg_comm_user:avg(results.map(s=>s.comm_user).filter(v=>v!=null)),
-        avg_ct_user:avg(results.map(s=>s.ct_user).filter(v=>v!=null)),
-        avg_comm_client:avg(results.map(s=>s.comm_client).filter(v=>v!=null)),
-        avg_ct_client:avg(results.map(s=>s.ct_client).filter(v=>v!=null))
+        total:data.length,
+        completed:data.filter(s=>s.completed===1).length,
+        avg_comm_user:avg(data.map(s=>s.comm_user).filter(v=>v!=null)),
+        avg_ct_user:avg(data.map(s=>s.ct_user).filter(v=>v!=null)),
+        avg_comm_client:avg(data.map(s=>s.comm_client).filter(v=>v!=null)),
+        avg_ct_client:avg(data.map(s=>s.ct_client).filter(v=>v!=null))
       },
       distribution:[1,2,3,4].map(l=>({level:l,label:['','Beginning','Developing','Applying','Mastery'][l],count:allScoreVals.filter(v=>v===l).length,pct:allScoreVals.length?Math.round(allScoreVals.filter(v=>v===l).length/allScoreVals.length*100):0})),
       indicator_averages:[
-        ...uInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,session:setupData.sess1||'User Interview',avg:avg(results.map(s=>s[ind+'_user_score']).filter(v=>v))})),
-        ...cInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,session:setupData.sess2||'Client Conversation',avg:avg(results.map(s=>s[ind+'_client_score']).filter(v=>v))}))
+        ...uInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,session:setupData.sess1||'User Interview',avg:avg(data.map(s=>s[ind+'_user_score']).filter(v=>v))})),
+        ...cInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,session:setupData.sess2||'Client Conversation',avg:avg(data.map(s=>s[ind+'_client_score']).filter(v=>v))}))
       ],
       cohort_summary:cohortSummary||''
     };
