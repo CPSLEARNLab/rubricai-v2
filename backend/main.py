@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()
-from evaluator import evaluate_participant_async, load_rubric, MAX_CONCURRENT
+from evaluator import evaluate_participant_async, load_rubric, MAX_CONCURRENT, get_cost_summary, reset_cost_counter
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -273,6 +273,7 @@ async def evaluate_stream(
         return StreamingResponse(parse_err_gen(), media_type="text/event-stream")
 
     total = len(rows)
+    reset_cost_counter()
     print(f"\nStreaming evaluation — {total} participants — {MAX_CONCURRENT} parallel")
 
     # ── Stream results as each participant finishes ────────────
@@ -307,7 +308,9 @@ async def evaluate_stream(
             else:
                 yield f"data: {json.dumps({'type':'skip','done':completed,'total':total})}\n\n"
 
-        yield f"data: {json.dumps({'type':'done','total':total})}\n\n"
+        cost = get_cost_summary()
+        print(f"\n{'='*50}\nRun complete — {cost['calls']} API calls | {cost['input_tokens']:,} in + {cost['output_tokens']:,} out tokens | ${cost['estimated_cost_usd']:.4f}\n{'='*50}")
+        yield f"data: {json.dumps({'type':'done','total':total,'cost':cost})}\n\n"
 
     return StreamingResponse(
         event_generator(),

@@ -12,6 +12,10 @@ load_dotenv()
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"  # fast + cheap for bulk evaluation
 MAX_CONCURRENT = 10  # parallel participants; each runs 2 sessions in parallel → up to 20 concurrent API calls
 
+# Haiku 4.5 pricing (per million tokens)
+PRICE_INPUT_PER_M  = 0.80
+PRICE_OUTPUT_PER_M = 4.00
+
 executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT * 2)
 
 # ── CLAUDE CLIENT (singleton — reuses connection pool across all threads) ──────
@@ -20,6 +24,23 @@ _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 def get_claude_client():
     return _client
 
+# ── GLOBAL TOKEN COUNTER (thread-safe via GIL on int ops) ────
+_token_stats = {"input": 0, "output": 0, "calls": 0}
+
+def get_cost_summary():
+    t = _token_stats
+    cost = (t["input"] / 1_000_000 * PRICE_INPUT_PER_M) + (t["output"] / 1_000_000 * PRICE_OUTPUT_PER_M)
+    return {
+        "calls": t["calls"],
+        "input_tokens": t["input"],
+        "output_tokens": t["output"],
+        "estimated_cost_usd": round(cost, 4)
+    }
+
+def reset_cost_counter():
+    _token_stats["input"] = 0
+    _token_stats["output"] = 0
+    _token_stats["calls"] = 0
 
 # ── RATE-LIMIT-AWARE CALL ─────────────────────────────────────
 def call_claude(prompt, max_retries=3):
@@ -32,6 +53,10 @@ def call_claude(prompt, max_retries=3):
                 temperature=0.0,
                 messages=[{"role": "user", "content": prompt}]
             )
+            # track token usage
+            _token_stats["input"]  += response.usage.input_tokens
+            _token_stats["output"] += response.usage.output_tokens
+            _token_stats["calls"]  += 1
             return response.content[0].text
         except Exception as e:
             err = str(e).lower()
