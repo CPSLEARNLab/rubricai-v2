@@ -451,7 +451,11 @@ async def evaluate_participant_async(
                 )
             )
 
-        user_result, client_result = await asyncio.gather(run_user(), run_client())
+        try:
+            user_result, client_result = await asyncio.gather(run_user(), run_client())
+        except Exception as e:
+            print(f"  !! Session evaluation error for {pid}: {e} — returning partial result")
+            user_result, client_result = None, None
 
         if user_result:
             comm, ct = calculate_scores(user_result.get("scores", {}), sel_u)

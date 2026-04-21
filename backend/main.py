@@ -281,9 +281,14 @@ async def evaluate_stream(
         semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
         async def wrapped(row):
-            result = await evaluate_participant_async(
-                row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore
-            )
+            try:
+                result = await evaluate_participant_async(
+                    row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore
+                )
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                print(f"  !! evaluate_participant_async failed: {e} — putting None so queue doesn't hang")
+                result = None
             await queue.put(result)
 
         # Fire all tasks concurrently — results land in queue as they finish
