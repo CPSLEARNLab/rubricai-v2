@@ -204,6 +204,104 @@ async def evaluate(
         traceback.print_exc()
         return JSONResponse({"status": "error", "message": str(e)})
 
+
+# ── EVALUATE (STREAMING) ──────────────────────────────────────
+@app.post("/api/evaluate-stream")
+async def evaluate_stream(
+    file: UploadFile = File(...),
+    rubric: Optional[UploadFile] = File(None),
+    column_mapping: Optional[str] = Form(None),
+    selected_indicators: Optional[str] = Form(None),
+    selected_u_indicators: Optional[str] = Form(None),
+    selected_c_indicators: Optional[str] = Form(None),
+    rubric_desc_map: Optional[str] = Form(None),
+    setup_data: Optional[str] = Form(None)
+):
+    # ── Parse inputs (same as /api/evaluate) ──────────────────
+    rubric_text = None
+    if rubric and rubric.filename:
+        rubric_contents = await rubric.read()
+        rubric_text = rubric_contents.decode("utf-8")
+        rubric_path = os.path.join(os.path.dirname(__file__), "rubric.md")
+        with open(rubric_path, "w") as f:
+            f.write(rubric_text)
+    else:
+        rubric_text = load_rubric()
+
+    def parse_json_field(s):
+        try:
+            return json.loads(s) if s else None
+        except Exception:
+            return None
+
+    sel_u    = parse_json_field(selected_u_indicators)
+    sel_c    = parse_json_field(selected_c_indicators)
+    desc_map = parse_json_field(rubric_desc_map) or {}
+    if not sel_u and not sel_c:
+        legacy = parse_json_field(selected_indicators)
+        if legacy:
+            sel_u = legacy
+            sel_c = legacy
+
+    col_map = parse_json_field(column_mapping)
+    setup   = parse_json_field(setup_data)
+
+    contents = await file.read()
+    rows = parse_upload_to_rows(contents, file.filename)
+    if not rows:
+        async def err_gen():
+            yield f"data: {json.dumps({'type':'error','message':'No data found in file'})}\n\n"
+        return StreamingResponse(err_gen(), media_type="text/event-stream")
+
+    if col_map:
+        inv_map = {v: k for k, v in col_map.items()}
+        mapped = []
+        for row in rows:
+            new_row = {inv_map.get(col.strip(), col.strip()): val for col, val in row.items()}
+            mapped.append(new_row)
+        rows = mapped
+
+    total = len(rows)
+    print(f"\nStreaming evaluation — {total} participants — {MAX_CONCURRENT} parallel")
+
+    # ── Stream results as each participant finishes ────────────
+    async def event_generator():
+        queue: asyncio.Queue = asyncio.Queue()
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+
+        async def wrapped(row):
+            result = await evaluate_participant_async(
+                row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore
+            )
+            await queue.put(result)
+
+        # Fire all tasks concurrently — results land in queue as they finish
+        for row in rows:
+            asyncio.create_task(wrapped(row))
+
+        # Emit start event
+        yield f"data: {json.dumps({'type':'start','total':total})}\n\n"
+
+        completed = 0
+        while completed < total:
+            result = await queue.get()
+            completed += 1
+            if result:
+                yield f"data: {json.dumps({'type':'student','done':completed,'total':total,'student':result})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type':'skip','done':completed,'total':total})}\n\n"
+
+        yield f"data: {json.dumps({'type':'done','total':total})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # disables nginx buffering if behind proxy
+        }
+    )
+
 # ── CHAT ──────────────────────────────────────────────────────
 @app.post("/api/chat")
 async def chat(request: dict):

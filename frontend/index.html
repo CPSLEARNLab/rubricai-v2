@@ -314,9 +314,18 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 .smap-table tr:last-child td{border-bottom:none;}
 .smap-table tr:nth-child(even) td{background:var(--surface2);}
 .smap-table tr:nth-child(odd) td{background:var(--surface);}
-.smap-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:11px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:170px;}
-.smap-select:focus{border-color:var(--accent);}
+.smap-cb-group{display:flex;flex-wrap:wrap;gap:6px;}
+.smap-cb-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;}
+.smap-cb-pill:hover{border-color:var(--accent);color:var(--accent);}
+.smap-cb-pill.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+.smap-cb-pill input[type=checkbox]{accent-color:var(--accent);width:12px;height:12px;cursor:pointer;flex-shrink:0;}
 .batch-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);border:1px solid var(--border);color:var(--muted);}
+/* BATCH FILTER CHIPS */
+.batch-filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.batch-filter-label{font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;}
+.batch-chip{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Inter',sans-serif;transition:all .15s;}
+.batch-chip:hover{border-color:var(--accent);color:var(--accent);}
+.batch-chip.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
 </style>
 </head>
 <body>
@@ -665,9 +674,7 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
             <option value="completed">Completed</option>
             <option value="incomplete">Incomplete</option>
           </select>
-          <select class="filter-select" id="filter-batch" onchange="applyFilters()" style="display:none">
-            <option value="">All Batches</option>
-          </select>
+          <div id="filter-batch-chips" style="display:none;"></div>
           <input class="search-input" placeholder="Search participant ID..." oninput="applyFilters()" id="search-input"/>
         </div>
         <div class="table-wrap">
@@ -687,6 +694,7 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
         <button class="btn" onclick="showPage('upload')">Go to Upload & Evaluate</button>
       </div>
       <div id="sum-content" style="display:none">
+        <div id="sum-batch-filter" style="display:none;margin-bottom:4px;"></div>
         <div class="cohort-card">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
             <div>
@@ -795,6 +803,7 @@ let rubricDescMap={};
 let U_IND=[],C_IND=[],ALL_IND=[];
 let indSessionMap={};
 let batchGroups=[];
+let activeBatch='',activeSummaryBatch='';
 let sortCol='',sortDir='asc';
 
 // ── CHIP TOGGLE ───────────────────────────────────────────────
@@ -881,18 +890,10 @@ function handleRubric(input){
     parsedRubric.forEach(c=>c.inds.forEach(ind=>{
       rubricDescMap[ind.id]=ind.name;
       ALL_IND.push(ind.id);
-      if(c.session==='User Interview'){U_IND.push(ind.id);indSessionMap[ind.id]='user';}
-      else{C_IND.push(ind.id);indSessionMap[ind.id]='client';}
+      if(c.session==='User Interview'){indSessionMap[ind.id]=new Set(['user']);}
+      else{indSessionMap[ind.id]=new Set(['client']);}
     }));
-    if(!U_IND.length&&!C_IND.length){
-      U_IND=ALL_IND.slice(0,Math.ceil(ALL_IND.length/2));
-      C_IND=ALL_IND.slice(Math.ceil(ALL_IND.length/2));
-      U_IND.forEach(id=>indSessionMap[id]='user');
-      C_IND.forEach(id=>indSessionMap[id]='client');
-    } else if(!U_IND.length){
-      U_IND=[...C_IND];C_IND=[];
-      U_IND.forEach(id=>indSessionMap[id]='user');
-    }
+    rebuildSessionLists();
     // Select ALL by default
     selectedInds=new Set(ALL_IND);
     const totalInds=parsedRubric.reduce((a,c)=>a+c.inds.length,0);
@@ -974,35 +975,36 @@ function renderSessionMapping(){
   const el=document.getElementById('session-map-section');
   if(!el) return;
   if(!parsedRubric.length){el.style.display='none';return;}
-  const sess1=setupData.sess1||'User Interview';
-  const sess2=setupData.sess2||'Client Conversation';
   el.style.display='block';
+  const sessDefs=getSessionDefs();
   const rows=parsedRubric.flatMap(c=>c.inds.map(ind=>({
     id:ind.id,name:ind.name,cluster:c.cluster,
-    session:indSessionMap[ind.id]||'client'
+    assigned:indSessionMap[ind.id]||new Set(['client'])
   })));
   el.innerHTML=`<div class="card" style="margin-bottom:0;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
       <div>
         <div class="card-title">Session–Indicator Mapping</div>
-        <div class="card-sub" style="margin-bottom:0;">Override which session each indicator is evaluated in. Changes take effect on the next run.</div>
+        <div class="card-sub" style="margin-bottom:0;">Choose which session(s) each indicator is evaluated in. Changes take effect on the next run.</div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="resetSessionMapping()">&#8635; Reset to Auto-Detect</button>
     </div>
     <div style="overflow-x:auto;">
       <table class="smap-table">
         <thead><tr>
-          <th>ID</th><th>Indicator Name</th><th>Cluster</th><th>Session</th>
+          <th>ID</th><th>Indicator Name</th><th>Cluster</th><th>Sessions</th>
         </tr></thead>
         <tbody>
           ${rows.map(r=>`<tr>
             <td><span class="rind-id">${r.id}</span></td>
             <td style="color:var(--text);font-weight:500;">${r.name}</td>
-            <td style="color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.cluster}">${r.cluster}</td>
-            <td><select class="smap-select" onchange="updateIndSession('${r.id}',this.value)">
-              <option value="user" ${r.session==='user'?'selected':''}>${sess1}</option>
-              <option value="client" ${r.session==='client'?'selected':''}>${sess2}</option>
-            </select></td>
+            <td style="color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.cluster}">${r.cluster}</td>
+            <td><div class="smap-cb-group">${sessDefs.map(sd=>{
+              const checked=r.assigned.has(sd.key);
+              return`<label class="smap-cb-pill${checked?' active':''}">
+                <input type="checkbox" ${checked?'checked':''} onchange="updateIndSessionCb('${r.id}','${sd.key}',this.checked);this.closest('label').classList.toggle('active',this.checked)">${sd.label}
+              </label>`;
+            }).join('')}</div></td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -1010,27 +1012,50 @@ function renderSessionMapping(){
   </div>`;
 }
 
-function updateIndSession(id,newSession){
-  indSessionMap[id]=newSession;
-  U_IND=ALL_IND.filter(i=>indSessionMap[i]==='user');
-  C_IND=ALL_IND.filter(i=>indSessionMap[i]==='client');
+// Returns [{key:'user',label:'User Interview'},{key:'client',label:'Client Conversation'},...]
+// based on however many sessions are set up
+function getSessionDefs(){
+  const n=Math.max(1,parseInt(setupData.num_sessions)||2);
+  const keys=['user','client','s3','s4','s5'];
+  const defaults=['User Interview','Client Conversation','Session 3','Session 4','Session 5'];
+  const defs=[];
+  for(let i=0;i<n;i++){
+    defs.push({key:keys[i],label:setupData[`sess${i+1}`]||defaults[i]});
+  }
+  return defs;
+}
+
+function rebuildSessionLists(){
+  U_IND=ALL_IND.filter(i=>indSessionMap[i]&&indSessionMap[i].has('user'));
+  C_IND=ALL_IND.filter(i=>indSessionMap[i]&&indSessionMap[i].has('client'));
+  // Fallback: if nothing assigned, split evenly across first two sessions
+  if(!U_IND.length&&!C_IND.length){
+    const half=Math.ceil(ALL_IND.length/2);
+    ALL_IND.forEach((id,idx)=>{
+      indSessionMap[id]=new Set([idx<half?'user':'client']);
+    });
+    U_IND=ALL_IND.slice(0,half);
+    C_IND=ALL_IND.slice(half);
+  } else if(!U_IND.length){
+    ALL_IND.forEach(id=>{indSessionMap[id]=new Set(['user']);});
+    U_IND=[...ALL_IND];C_IND=[];
+  }
+}
+
+function updateIndSessionCb(id,sessKey,checked){
+  if(!indSessionMap[id]) indSessionMap[id]=new Set();
+  if(checked) indSessionMap[id].add(sessKey);
+  else indSessionMap[id].delete(sessKey);
+  rebuildSessionLists();
 }
 
 function resetSessionMapping(){
-  U_IND=[];C_IND=[];indSessionMap={};
+  indSessionMap={};
   parsedRubric.forEach(c=>c.inds.forEach(ind=>{
-    if(c.session==='User Interview'){U_IND.push(ind.id);indSessionMap[ind.id]='user';}
-    else{C_IND.push(ind.id);indSessionMap[ind.id]='client';}
+    if(c.session==='User Interview') indSessionMap[ind.id]=new Set(['user']);
+    else indSessionMap[ind.id]=new Set(['client']);
   }));
-  if(!U_IND.length&&!C_IND.length){
-    U_IND=ALL_IND.slice(0,Math.ceil(ALL_IND.length/2));
-    C_IND=ALL_IND.slice(Math.ceil(ALL_IND.length/2));
-    U_IND.forEach(id=>indSessionMap[id]='user');
-    C_IND.forEach(id=>indSessionMap[id]='client');
-  } else if(!U_IND.length){
-    U_IND=[...C_IND];C_IND=[];
-    U_IND.forEach(id=>indSessionMap[id]='user');
-  }
+  rebuildSessionLists();
   renderSessionMapping();
   toast('Session mapping reset to auto-detect.','ok');
 }
@@ -1077,12 +1102,13 @@ async function handleFile(input){
         const c=col.toLowerCase().trim();
         if(!columnMapping.participant_id&&/participant|student_id|^student$|^id$|^name$/i.test(c)) columnMapping.participant_id=col;
         else if(!columnMapping.simulation&&/simulation|sim|course|scenario|assignment/i.test(c)) columnMapping.simulation=col;
-        else if(!columnMapping.completed_user&&/completed|status|done/i.test(c)) columnMapping.completed_user=col;
+        else if(/completed|status|done/i.test(c)){if(!columnMapping.completed_user) columnMapping.completed_user=col;}
         else if(!columnMapping.transcript_user&&/transcript_user|user_transcript|interview|script_a|transcript_a/i.test(c)) columnMapping.transcript_user=col;
-        else if(!columnMapping.transcript_client&&/transcript_client|client_transcript|client|script_b|transcript_b/i.test(c)) columnMapping.transcript_client=col;
+        else if(!columnMapping.transcript_client&&/transcript_client|client_transcript|\bclient\b|script_b|transcript_b/i.test(c)) columnMapping.transcript_client=col;
         else if(!columnMapping.batch&&/^batch$|^group$|^section$|cohort_group|class_group/i.test(c)) columnMapping.batch=col;
       });
-      const sampleVals=lines[1]?lines[1].split(','):[];
+      function splitCsvRow(row){const res=[];let q=false,cur='';for(let i=0;i<row.length;i++){if(row[i]==='"'){q=!q;}else if(row[i]===','&&!q){res.push(cur);cur='';}else{cur+=row[i];}}res.push(cur);return res;}
+      const sampleVals=lines[1]?splitCsvRow(lines[1]):[];
       rawHeaders.forEach((col,i)=>{
         if((sampleVals[i]||'').length>200){
           if(!columnMapping.transcript_user) columnMapping.transcript_user=col;
@@ -1174,7 +1200,7 @@ async function runEval(){
   if(selectedInds.size===0){toast('Select at least one indicator in Rubric Framework.','err');btn.disabled=false;return;}
   const pw=document.getElementById('prog-wrap'),pb=document.getElementById('prog-bar'),
     ps=document.getElementById('prog-status');
-  pw.style.display='block';pb.style.width='10%';
+  pw.style.display='block';pb.style.width='5%';
   ps.textContent='Uploading files...';
   const fd=new FormData();
   fd.append('file',file);
@@ -1185,19 +1211,61 @@ async function runEval(){
   fd.append('rubric_desc_map',JSON.stringify(rubricDescMap));
   fd.append('setup_data',JSON.stringify(setupData));
   try{
-    pb.style.width='20%';ps.textContent='Evaluating with AI — this may take several minutes.';
-    let p=20;const t=setInterval(()=>{if(p<88){p+=1.2;pb.style.width=p+'%';}},1500);
-    const r=await fetch(`${API}/api/evaluate`,{method:'POST',body:fd});
-    clearInterval(t);
+    const r=await fetch(`${API}/api/evaluate-stream`,{method:'POST',body:fd});
     if(!r.ok) throw new Error('Server error: '+r.status);
-    const d=await r.json();
-    if(d.status!=='success') throw new Error(d.message||'Evaluation failed');
-    results=d.students;pb.style.width='100%';
-    ps.textContent='Done. '+results.length+' participants evaluated.';
-    const badge=document.getElementById('nav-count');
-    if(badge){badge.textContent=results.length;badge.style.display='inline';}
+    const reader=r.body.getReader();
+    const decoder=new TextDecoder();
+    results=[];
     cohortSummary='';
-    showPage('overview');
+    activeBatch='';activeSummaryBatch='';
+    let total=0,buf='';
+    while(true){
+      const{done,value}=await reader.read();
+      if(done){
+        // flush any remaining buffered data
+        buf+=decoder.decode();
+        if(buf.trim()){
+          for(const line of buf.split('\n')){
+            if(!line.startsWith('data:')) continue;
+            let evt;try{evt=JSON.parse(line.slice(5).trim());}catch{continue;}
+            if(evt.type==='student') results.push(evt.student);
+          }
+        }
+        break;
+      }
+      buf+=decoder.decode(value,{stream:true});
+      const lines=buf.split('\n');
+      buf=lines.pop(); // keep incomplete last line
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        let evt;
+        try{evt=JSON.parse(line.slice(5).trim());}catch{continue;}
+        if(evt.type==='error') throw new Error(evt.message||'Evaluation failed');
+        if(evt.type==='start'){
+          total=evt.total;
+          pb.style.width='10%';
+          ps.textContent=`Evaluating 0 of ${total} participants...`;
+        } else if(evt.type==='student'||evt.type==='skip'){
+          if(evt.type==='student') results.push(evt.student);
+          const pct=Math.round((evt.done/evt.total)*100);
+          pb.style.width=Math.max(10,pct)+'%';
+          ps.textContent=`Evaluating ${evt.done} of ${evt.total} participants...`;
+          // Live-render results as they arrive
+          if(results.length===1){
+            // First result — switch to overview so user sees the table populate
+            showPage('overview');
+          }
+          renderOv();
+        } else if(evt.type==='done'){
+          pb.style.width='100%';
+          ps.textContent=`Done. ${results.length} participants evaluated.`;
+          const badge=document.getElementById('nav-count');
+          if(badge){badge.textContent=results.length;badge.style.display='inline';}
+          renderOv();
+        }
+      }
+    }
+    btn.disabled=false;
   }catch(e){
     pb.style.width='0%';ps.textContent='Error: '+e.message;
     btn.disabled=false;toast('Evaluation failed: '+e.message,'err');
@@ -1223,28 +1291,37 @@ function shortName(id){
 // ── OVERVIEW ──────────────────────────────────────────────────
 function renderOv(){
   if(!results.length)return;
-  const tot=results.length,comp=results.filter(s=>s.completed===1).length;
-  const cv=results.map(s=>s.comm_user).filter(v=>v!=null);
-  const ctv=results.map(s=>s.ct_user).filter(v=>v!=null);
-  const avg=cv.length?(cv.reduce((a,b)=>a+b,0)/cv.length).toFixed(2):'N/A';
-  const avgCT=ctv.length?(ctv.reduce((a,b)=>a+b,0)/ctv.length).toFixed(2):'N/A';
+  const tot=results.length;
   // Batch groups
   batchGroups=[...new Set(results.map(s=>s.batch||'').filter(Boolean))].sort();
-  const batchFilter=document.getElementById('filter-batch');
-  if(batchFilter){
-    if(batchGroups.length>1){
-      batchFilter.innerHTML='<option value="">All Batches</option>'+batchGroups.map(b=>`<option value="${b}">${b}</option>`).join('');
-      batchFilter.style.display='';
+  const chipsEl=document.getElementById('filter-batch-chips');
+  if(chipsEl){
+    if(batchGroups.length>0){
+      chipsEl.style.display='flex';
+      chipsEl.style.flexWrap='wrap';
+      chipsEl.style.gap='6px';
+      chipsEl.style.alignItems='center';
+      chipsEl.innerHTML=`<span class="batch-filter-label">Class:</span>`
+        +`<button class="batch-chip${activeBatch===''?' active':''}" data-batch="" onclick="setOvBatch('')">All</button>`
+        +batchGroups.map(b=>`<button class="batch-chip${activeBatch===b?' active':''}" data-batch="${b}" onclick="setOvBatch('${b}')">${b}</button>`).join('');
     } else {
-      batchFilter.style.display='none';
+      chipsEl.style.display='none';
     }
   }
-  const batchMeta=batchGroups.length>1?` · ${batchGroups.length} batches`:'';
+  const batchMeta=batchGroups.length>0?` · ${batchGroups.length} class${batchGroups.length>1?'es':''}`:'';
+  // Filter stat cards to active batch
+  const statsData=activeBatch?results.filter(s=>(s.batch||'')===activeBatch):results;
+  const statComp=statsData.filter(s=>s.completed===1).length;
+  const statCv=statsData.map(s=>s.comm_user).filter(v=>v!=null);
+  const statCtv=statsData.map(s=>s.ct_user).filter(v=>v!=null);
+  const statAvg=statCv.length?(statCv.reduce((a,b)=>a+b,0)/statCv.length).toFixed(2):'N/A';
+  const statAvgCT=statCtv.length?(statCtv.reduce((a,b)=>a+b,0)/statCtv.length).toFixed(2):'N/A';
+  const batchLabel=activeBatch?` — ${activeBatch}`:'';
   document.getElementById('stats-row').innerHTML=`
-    <div class="stat-card"><div class="stat-label">Total Participants</div><div class="stat-value">${tot}</div><div class="stat-meta">Evaluated${batchMeta}</div></div>
-    <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value">${comp}</div><div class="stat-meta">Both sessions</div></div>
-    <div class="stat-card"><div class="stat-label">Avg Comm Score</div><div class="stat-value" style="color:${scColor(parseFloat(avg))}">${avg}</div><div class="stat-meta">User Interview / 4.0</div></div>
-    <div class="stat-card"><div class="stat-label">Avg CT Score</div><div class="stat-value" style="color:${scColor(parseFloat(avgCT))}">${avgCT}</div><div class="stat-meta">User Interview / 4.0</div></div>`;
+    <div class="stat-card"><div class="stat-label">Total Participants${batchLabel}</div><div class="stat-value">${statsData.length}</div><div class="stat-meta">Evaluated${batchMeta}</div></div>
+    <div class="stat-card"><div class="stat-label">Completed${batchLabel}</div><div class="stat-value">${statComp}</div><div class="stat-meta">Sessions completed</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Comm Score${batchLabel}</div><div class="stat-value" style="color:${scColor(parseFloat(statAvg))}">${statAvg}</div><div class="stat-meta">User Interview / 4.0</div></div>
+    <div class="stat-card"><div class="stat-label">Avg CT Score${batchLabel}</div><div class="stat-value" style="color:${scColor(parseFloat(statAvgCT))}">${statAvgCT}</div><div class="stat-meta">User Interview / 4.0</div></div>`;
   document.getElementById('tbl-meta').textContent=[...new Set(results.map(s=>s.simulation))].join(', ')+' · '+tot+' participants';
   document.getElementById('ov-empty').style.display='none';
   document.getElementById('ov-content').style.display='block';
@@ -1256,15 +1333,19 @@ function renderOv(){
 function applyFilters(){
   const q=(document.getElementById('search-input')?.value||'').toLowerCase();
   const status=document.getElementById('filter-status')?.value||'';
-  const batch=document.getElementById('filter-batch')?.value||'';
   let filtered=results.filter(s=>{
     if(q&&!s.participant_id.toLowerCase().includes(q)&&!s.simulation.toLowerCase().includes(q)) return false;
     if(status==='completed'&&s.completed!==1) return false;
     if(status==='incomplete'&&s.completed===1) return false;
-    if(batch&&(s.batch||'')!==batch) return false;
+    if(activeBatch&&(s.batch||'')!==activeBatch) return false;
     return true;
   });
   renderTbl(filtered);
+}
+function setOvBatch(b){
+  activeBatch=b;
+  renderOv();
+  applyFilters();
 }
 
 function renderTbl(data){
@@ -1470,11 +1551,12 @@ function switchDash(p,btn){
   btn.classList.add('active');
   document.getElementById('dash-'+p).classList.add('active');
 }
-function hbarChart(inds,sfx){
+function hbarChart(inds,sfx,src){
   const active=inds.filter(i=>selectedInds.has(i));
+  const d=src||results;
   if(!active.length) return`<p style="font-size:12px;color:var(--subtle);padding:8px 0">No indicators selected for this session.</p>`;
   return active.map(ind=>{
-    const vs=results.map(s=>s[`${ind}${sfx}_score`]).filter(v=>v&&v>0);
+    const vs=d.map(s=>s[`${ind}${sfx}_score`]).filter(v=>v&&v>0);
     const av=vs.length?(vs.reduce((a,b)=>a+b,0)/vs.length):0;
     const col=av>=3.5?'var(--green)':av>=2.5?'var(--amber)':av>=1.5?'var(--orange)':'var(--red)';
     const name=rubricDescMap[ind]||ind;
@@ -1496,6 +1578,10 @@ function donutSVG(comp,inc){
     <text x="${cx}" y="${cy+12}" text-anchor="middle" fill="var(--subtle)" font-size="10" font-family="Inter">Completed</text>
   </svg>`;
 }
+function setSummaryBatch(b){
+  activeSummaryBatch=b;
+  renderSum();
+}
 function renderSum(){
   if(!results.length)return;
   document.getElementById('sum-empty').style.display='none';
@@ -1508,11 +1594,29 @@ function renderSum(){
     document.getElementById('dash-tab-client').textContent=setupData.sess2;
     document.getElementById('sess-tab-client').textContent=setupData.sess2;
   }
-  const tot=results.length,comp=results.filter(s=>s.completed===1).length,inc=tot-comp;
-  const commU=results.map(s=>s.comm_user).filter(v=>v!=null);
-  const ctU=results.map(s=>s.ct_user).filter(v=>v!=null);
-  const commC=results.map(s=>s.comm_client).filter(v=>v!=null);
-  const ctC=results.map(s=>s.ct_client).filter(v=>v!=null);
+  // Batch filter chips
+  const sumBatches=[...new Set(results.map(s=>s.batch||'').filter(Boolean))].sort();
+  const sumBatchEl=document.getElementById('sum-batch-filter');
+  if(sumBatchEl){
+    if(sumBatches.length>0){
+      sumBatchEl.style.display='flex';
+      sumBatchEl.style.flexWrap='wrap';
+      sumBatchEl.style.gap='6px';
+      sumBatchEl.style.alignItems='center';
+      sumBatchEl.innerHTML=`<span class="batch-filter-label">Class:</span>`
+        +`<button class="batch-chip${activeSummaryBatch===''?' active':''}" onclick="setSummaryBatch('')">All</button>`
+        +sumBatches.map(b=>`<button class="batch-chip${activeSummaryBatch===b?' active':''}" onclick="setSummaryBatch('${b}')">${b}</button>`).join('');
+    } else {
+      sumBatchEl.style.display='none';
+    }
+  }
+  // Filter data by active batch
+  const data=activeSummaryBatch?results.filter(s=>(s.batch||'')===activeSummaryBatch):results;
+  const tot=data.length,comp=data.filter(s=>s.completed===1).length,inc=tot-comp;
+  const commU=data.map(s=>s.comm_user).filter(v=>v!=null);
+  const ctU=data.map(s=>s.ct_user).filter(v=>v!=null);
+  const commC=data.map(s=>s.comm_client).filter(v=>v!=null);
+  const ctC=data.map(s=>s.ct_client).filter(v=>v!=null);
   const avgCU=commU.length?(commU.reduce((a,b)=>a+b,0)/commU.length).toFixed(2):'N/A';
   const avgCTU=ctU.length?(ctU.reduce((a,b)=>a+b,0)/ctU.length).toFixed(2):'N/A';
   const avgCC=commC.length?(commC.reduce((a,b)=>a+b,0)/commC.length).toFixed(2):'N/A';
@@ -1521,7 +1625,7 @@ function renderSum(){
   const allScores=[];
   ALL_IND.filter(i=>selectedInds.has(i)).forEach(ind=>{
     const sfx=U_IND.includes(ind)?'_user':'_client';
-    results.forEach(s=>{const v=s[`${ind}${sfx}_score`];if(v) allScores.push(v);});
+    data.forEach(s=>{const v=s[`${ind}${sfx}_score`];if(v) allScores.push(v);});
   });
   const dist=[0,0,0,0];
   allScores.forEach(v=>{const n=Math.min(4,Math.max(1,Math.round(v)));dist[n-1]++;});
@@ -1532,7 +1636,7 @@ function renderSum(){
       <div class="kpi-card"><div class="kpi-label">Avg ${setupData.sess1||'User Interview'} Comm</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCU))}">${avgCU}</div><span class="kpi-badge kpi-neutral">out of 4</span></div>
       <div class="kpi-card"><div class="kpi-label">Avg ${setupData.sess1||'User Interview'} CT</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCTU))}">${avgCTU}</div><span class="kpi-badge kpi-neutral">out of 4</span></div>
       <div class="kpi-card"><div class="kpi-label">Completion Rate</div><div class="kpi-val">${compRate}%</div><span class="kpi-badge ${compRate>=80?'kpi-up':'kpi-down'}">${comp} of ${tot}</span></div>
-      <div class="kpi-card"><div class="kpi-label">Total Evaluated</div><div class="kpi-val">${tot}</div><span class="kpi-badge kpi-neutral">${[...new Set(results.map(s=>s.simulation))].length} simulations</span></div>
+      <div class="kpi-card"><div class="kpi-label">Total Evaluated</div><div class="kpi-val">${tot}</div><span class="kpi-badge kpi-neutral">${[...new Set(data.map(s=>s.simulation))].length} simulations</span></div>
     </div>
     <div class="charts-2col">
       <div class="chart-card">
@@ -1567,20 +1671,20 @@ function renderSum(){
       <div class="kpi-card"><div class="kpi-label">Avg Communication</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCU))}">${avgCU}</div><span class="kpi-badge kpi-neutral">${setupData.sess1||'User Interview'}</span></div>
       <div class="kpi-card"><div class="kpi-label">Avg Critical Thinking</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCTU))}">${avgCTU}</div><span class="kpi-badge kpi-neutral">${setupData.sess1||'User Interview'}</span></div>
       <div class="kpi-card"><div class="kpi-label">Indicators Evaluated</div><div class="kpi-val">${U_IND.filter(i=>selectedInds.has(i)).length}</div><span class="kpi-badge kpi-neutral">of ${U_IND.length}</span></div>
-      <div class="kpi-card"><div class="kpi-label">Participants</div><div class="kpi-val">${results.filter(s=>s.comm_user!=null).length}</div><span class="kpi-badge kpi-neutral">of ${tot}</span></div>
+      <div class="kpi-card"><div class="kpi-label">Participants</div><div class="kpi-val">${data.filter(s=>s.comm_user!=null).length}</div><span class="kpi-badge kpi-neutral">of ${tot}</span></div>
     </div>
-    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess1||'User Interview'}</div><div class="chart-sub">Scored 1–4 against rubric · Colour coded by performance level</div><div class="hbar-list">${hbarChart(U_IND,'_user')}</div></div>`;
+    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess1||'User Interview'}</div><div class="chart-sub">Scored 1–4 against rubric · Colour coded by performance level</div><div class="hbar-list">${hbarChart(U_IND,'_user',data)}</div></div>`;
 
   document.getElementById('dash-client').innerHTML=`
     <div class="kpi-row">
       <div class="kpi-card"><div class="kpi-label">Avg Communication</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCC))}">${avgCC}</div><span class="kpi-badge kpi-neutral">${setupData.sess2||'Client Conversation'}</span></div>
       <div class="kpi-card"><div class="kpi-label">Avg Critical Thinking</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCTC))}">${avgCTC}</div><span class="kpi-badge kpi-neutral">${setupData.sess2||'Client Conversation'}</span></div>
       <div class="kpi-card"><div class="kpi-label">Indicators Evaluated</div><div class="kpi-val">${C_IND.filter(i=>selectedInds.has(i)).length}</div><span class="kpi-badge kpi-neutral">of ${C_IND.length}</span></div>
-      <div class="kpi-card"><div class="kpi-label">Participants</div><div class="kpi-val">${results.filter(s=>s.comm_client!=null).length}</div><span class="kpi-badge kpi-neutral">of ${tot}</span></div>
+      <div class="kpi-card"><div class="kpi-label">Participants</div><div class="kpi-val">${data.filter(s=>s.comm_client!=null).length}</div><span class="kpi-badge kpi-neutral">of ${tot}</span></div>
     </div>
-    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess2||'Client Conversation'}</div><div class="chart-sub">Scored 1–4 against rubric · Colour coded by performance level</div><div class="hbar-list">${hbarChart(C_IND,'_client')}</div></div>`;
+    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess2||'Client Conversation'}</div><div class="chart-sub">Scored 1–4 against rubric · Colour coded by performance level</div><div class="hbar-list">${hbarChart(C_IND,'_client',data)}</div></div>`;
 
-  const ranked=[...results].sort((a,b)=>{
+  const ranked=[...data].sort((a,b)=>{
     const sa=(a.comm_user??0)+(a.ct_user??0)+(a.comm_client??0)+(a.ct_client??0);
     const sb=(b.comm_user??0)+(b.ct_user??0)+(b.comm_client??0)+(b.ct_client??0);
     return sb-sa;
