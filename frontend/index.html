@@ -1127,11 +1127,11 @@ function handleRubric(input){
     rubricDescMap={};
     ALL_IND=[];U_IND=[];C_IND=[];indSessionMap={};
     parsedRubric.forEach(c=>c.inds.forEach(ind=>{
-      rubricDescMap[ind.id]=ind.name;
-      ALL_IND.push(ind.id);
-      if(c.session==='User Interview'){indSessionMap[ind.id]=new Set(['user']);}
-      else{indSessionMap[ind.id]=new Set(['client']);}
-    }));
+  rubricDescMap[ind.id]=ind.name;
+  ALL_IND.push(ind.id);
+  const sessDefs=getSessionDefs();
+  indSessionMap[ind.id]=new Set(sessDefs.map(s=>s.key));
+}));
     rebuildSessionLists();
     // Select ALL by default
     selectedInds=new Set(ALL_IND);
@@ -1212,45 +1212,94 @@ function updateIndSelCount(){
 // ── SESSION-INDICATOR MAPPING ─────────────────────────────────
 function renderSessionMapping(){
   const el=document.getElementById('session-map-section');
-  if(!el) return;
+  if(!el)return;
   if(!parsedRubric.length){el.style.display='none';return;}
   el.style.display='block';
   const sessDefs=getSessionDefs();
   const rows=parsedRubric.flatMap(c=>c.inds.map(ind=>({
     id:ind.id,name:ind.name,cluster:c.cluster,
-    assigned:indSessionMap[ind.id]||new Set(['client'])
+    assigned:indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key))
   })));
+
+  // Group rows by cluster
+  const clusterMap={};
+  parsedRubric.forEach(c=>{
+    clusterMap[c.cluster]=c.inds.map(ind=>({
+      id:ind.id,name:ind.name,
+      assigned:indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key))
+    }));
+  });
+
+  const colW=Math.floor(60/sessDefs.length);
+
   el.innerHTML=`<div class="card" style="margin-bottom:0;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
       <div>
         <div class="card-title">Session–Indicator Mapping</div>
-        <div class="card-sub" style="margin-bottom:0;">Choose which session(s) each indicator is evaluated in. Changes take effect on the next run.</div>
+        <div class="card-sub" style="margin-bottom:0;">Check which sessions each indicator should be evaluated in. All selected by default.</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="resetSessionMapping()">&#8635; Reset to Auto-Detect</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="setAllSessionMapping(true)">✓ All</button>
+        <button class="btn btn-ghost btn-sm" onclick="setAllSessionMapping(false)">✕ None</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetSessionMapping()">↻ Reset</button>
+      </div>
     </div>
     <div style="overflow-x:auto;">
-      <table class="smap-table">
-        <thead><tr>
-          <th>ID</th><th>Indicator Name</th><th>Cluster</th><th>Sessions</th>
-        </tr></thead>
+      <table class="smap-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th style="width:80px;">ID</th>
+            <th style="width:40%;">Indicator</th>
+            <th style="width:15%;">Cluster</th>
+            ${sessDefs.map(sd=>`<th style="width:${colW}%;text-align:center;color:var(--accent);">${sd.label}</th>`).join('')}
+          </tr>
+        </thead>
         <tbody>
-          ${rows.map(r=>`<tr>
-            <td><span class="rind-id">${r.id}</span></td>
-            <td style="color:var(--text);font-weight:500;">${r.name}</td>
-            <td style="color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.cluster}">${r.cluster}</td>
-            <td><div class="smap-cb-group">${sessDefs.map(sd=>{
-              const checked=r.assigned.has(sd.key);
-              return`<label class="smap-cb-pill${checked?' active':''}">
-                <input type="checkbox" ${checked?'checked':''} onchange="updateIndSessionCb('${r.id}','${sd.key}',this.checked);this.closest('label').classList.toggle('active',this.checked)">${sd.label}
-              </label>`;
-            }).join('')}</div></td>
-          </tr>`).join('')}
+          ${parsedRubric.map(c=>`
+            <tr>
+              <td colspan="${3+sessDefs.length}" style="background:var(--surface2);padding:8px 12px;border-bottom:1px solid var(--border);">
+                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;">
+                  ${c.cluster}
+                </span>
+                <span style="font-size:10px;color:var(--subtle);margin-left:8px;">${c.inds.length} indicator${c.inds.length!==1?'s':''}</span>
+              </td>
+            </tr>
+            ${c.inds.map(ind=>{
+              const assigned=indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key));
+              return`<tr>
+                <td><span class="rind-id">${ind.id}</span></td>
+                <td style="color:var(--text);font-weight:500;font-size:12px;">${ind.name}</td>
+                <td style="color:var(--muted);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.cluster}">${c.cluster}</td>
+                ${sessDefs.map(sd=>{
+                  const checked=assigned.has(sd.key);
+                  return`<td style="text-align:center;">
+                    <label class="smap-cb-pill${checked?' active':''}" style="justify-content:center;width:100%;">
+                      <input type="checkbox" ${checked?'checked':''} 
+                        onchange="updateIndSessionCb('${ind.id}','${sd.key}',this.checked);this.closest('label').classList.toggle('active',this.checked)">
+                    </label>
+                  </td>`;
+                }).join('')}
+              </tr>`;
+            }).join('')}
+          `).join('')}
         </tbody>
       </table>
     </div>
   </div>`;
 }
-
+function setAllSessionMapping(val){
+  const sessDefs=getSessionDefs();
+  parsedRubric.forEach(c=>c.inds.forEach(ind=>{
+    if(!indSessionMap[ind.id]) indSessionMap[ind.id]=new Set();
+    sessDefs.forEach(sd=>{
+      if(val) indSessionMap[ind.id].add(sd.key);
+      else indSessionMap[ind.id].delete(sd.key);
+    });
+  }));
+  rebuildSessionLists();
+  renderSessionMapping();
+  toast(val?'All indicators selected for all sessions.':'All indicators deselected.','ok');
+}
 // Returns [{key:'user',label:'User Interview'},{key:'client',label:'Client Conversation'},...]
 // based on however many sessions are set up
 function getSessionDefs(){
@@ -1287,16 +1336,29 @@ function updateIndSessionCb(id,sessKey,checked){
   else indSessionMap[id].delete(sessKey);
   rebuildSessionLists();
 }
-
-function resetSessionMapping(){
-  indSessionMap={};
+function setAllSessionMapping(val){
+  const sessDefs=getSessionDefs();
   parsedRubric.forEach(c=>c.inds.forEach(ind=>{
-    if(c.session==='User Interview') indSessionMap[ind.id]=new Set(['user']);
-    else indSessionMap[ind.id]=new Set(['client']);
+    if(!indSessionMap[ind.id]) indSessionMap[ind.id]=new Set();
+    sessDefs.forEach(sd=>{
+      if(val) indSessionMap[ind.id].add(sd.key);
+      else indSessionMap[ind.id].delete(sd.key);
+    });
   }));
   rebuildSessionLists();
   renderSessionMapping();
-  toast('Session mapping reset to auto-detect.','ok');
+  toast(val?'All indicators selected for all sessions.':'All indicators deselected.','ok');
+}
+
+function resetSessionMapping(){
+  const sessDefs=getSessionDefs();
+  indSessionMap={};
+  parsedRubric.forEach(c=>c.inds.forEach(ind=>{
+    indSessionMap[ind.id]=new Set(sessDefs.map(s=>s.key));
+  }));
+  rebuildSessionLists();
+  renderSessionMapping();
+  toast('Session mapping reset — all indicators selected for all sessions.','ok');
 }
 
 // ── STATUS CARDS ──────────────────────────────────────────────
