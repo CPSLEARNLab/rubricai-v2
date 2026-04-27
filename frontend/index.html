@@ -1026,11 +1026,22 @@ function getChips(groupId){
   return [...document.querySelectorAll(`#chips-${groupId} .chip.active`)].map(c=>c.textContent).join(', ');
 }
 
-// ── RUBRIC PARSER ─────────────────────────────────────────────
+// ── RUBRIC PARSER (FIXED — auto-detects heading level) ────────
 function parseRubricMarkdown(text){
   const lines=text.split('\n');
   const clusters=[];
   let curCluster=null,curInd=null,clusterIdx=0,indIdx=0;
+
+  // Auto-detect heading level used for indicators in this rubric
+  let indHeadLevel=5;
+  for(const line of lines){
+    const m=line.match(/^(#{2,6})\s+.*indicator/i);
+    if(m){indHeadLevel=m[1].length;break;}
+  }
+  const clusterHeadLevel=indHeadLevel-1;
+  const indPrefix='#'.repeat(indHeadLevel)+' ';
+  const clusterPrefix='#'.repeat(clusterHeadLevel)+' ';
+
   function saveInd(){
     if(curInd){
       for(let i=0;i<4;i++) if(!curInd.ls[i]) curInd.ls[i]='No descriptor provided.';
@@ -1046,14 +1057,17 @@ function parseRubricMarkdown(text){
   for(let i=0;i<lines.length;i++){
     const line=lines[i],trimmed=line.trim();
     if(!trimmed) continue;
-    if(/^####\s+/.test(line)&&!/^#####/.test(line)){
+    const isInd=line.startsWith(indPrefix);
+    const isCluster=line.startsWith(clusterPrefix)&&!isInd;
+    if(isCluster){
       saveCluster();
       clusterIdx++;indIdx=0;
-      curCluster={cluster:line.replace(/^####\s+/,'').replace(/\*\*/g,'').trim(),session:guessSession(line),inds:[],clusterIdx};
+      const title=line.replace(/^#+\s+/,'').replace(/\*\*/g,'').trim();
+      curCluster={cluster:title,session:guessSession(line),inds:[],clusterIdx};
       continue;
     }
-    if(/^#####\s+/.test(line)){
-      const hdr=line.replace(/^#####\s+/,'').replace(/\*\*/g,'').trim();
+    if(isInd){
+      const hdr=line.replace(/^#+\s+/,'').replace(/\*\*/g,'').trim();
       if(/indicator/i.test(hdr)){
         saveInd();indIdx++;
         const m=hdr.match(/^Indicator\s+(\d+)[:\s\-–]+(.+)/i);
