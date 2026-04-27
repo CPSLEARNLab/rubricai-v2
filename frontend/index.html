@@ -398,6 +398,35 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
   .sidebar.open{transform:translateX(0);}
   .main{margin-left:0!important;}
 }
+/* SCREENS */
+.screen{display:none;min-height:100vh;}
+.screen.active{display:flex;}
+/* LOGIN */
+#sc-login{align-items:center;justify-content:center;position:relative;overflow:hidden;flex-direction:column;background:var(--bg);}
+.lg-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 60% at 50% 50%,black 20%,transparent 100%);opacity:0.35;}
+.lg-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(59,130,246,0.15) 0%,transparent 70%);pointer-events:none;}
+.lg-card{position:relative;z-index:1;width:420px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:40px;box-shadow:0 25px 60px rgba(0,0,0,0.5);}
+.lg-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;}
+.lg-mark{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;}
+.lg-name{font-size:18px;font-weight:800;}
+.lg-sub{font-size:10px;color:var(--subtle);margin-top:1px;}
+.lg-h{font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px;}
+.lg-p{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.lg-field{margin-bottom:16px;}
+.lg-lbl{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.lg-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
+.lg-input:focus{border-color:var(--accent);}
+.lg-input::placeholder{color:var(--subtle);}
+.lg-btn{width:100%;padding:11px;background:var(--accent);border:none;border-radius:7px;font-size:14px;font-weight:700;color:#fff;margin-top:8px;transition:all .15s;cursor:pointer;}
+.lg-btn:hover{background:#1d4ed8;transform:translateY(-1px);}
+.lg-div{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--subtle);font-size:12px;}
+.lg-div::before,.lg-div::after{content:'';flex:1;height:1px;background:var(--border);}
+.lg-guest{width:100%;padding:10px;background:transparent;border:1px solid var(--border2);border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);transition:all .15s;cursor:pointer;}
+.lg-guest:hover{border-color:var(--border2);color:var(--text);background:var(--surface2);}
+.lg-foot{margin-top:24px;text-align:center;font-size:11px;color:var(--subtle);}
+/* APP SCREEN */
+#sc-app{flex-direction:row;width:100%;min-height:100vh;}
+#sc-login{width:100%;min-height:100vh;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
@@ -423,6 +452,28 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 </style>
 </head>
 <body>
+<!-- LOGIN SCREEN -->
+<div class="screen active" id="sc-login">
+  <div class="lg-grid"></div>
+  <div class="lg-glow"></div>
+  <div class="lg-card">
+    <div class="lg-logo">
+      <div class="lg-mark">R</div>
+      <div><div class="lg-name">RubricAI</div><div class="lg-sub">CPS LEARN Lab · Northeastern University</div></div>
+    </div>
+    <div class="lg-h">Sign in to your workspace</div>
+    <div class="lg-p">AI-powered rubric evaluation at institutional scale.</div>
+    <div class="lg-field"><label class="lg-lbl">Email address</label><input class="lg-input" type="email" placeholder="you@northeastern.edu" id="lg-email"/></div>
+    <div class="lg-field"><label class="lg-lbl">Password</label><input class="lg-input" type="password" placeholder="········" id="lg-pass"/></div>
+    <button class="lg-btn" onclick="doLogin()">Sign in →</button>
+    <div class="lg-div">or</div>
+    <button class="lg-guest" onclick="doLogin()">Continue as guest →</button>
+    <div class="lg-foot">© 2026 CPS LEARN Lab · Northeastern University</div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div class="screen" id="sc-app">
 <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">
   <span></span><span></span><span></span>
 </button>
@@ -2246,6 +2297,13 @@ function toast(msg,type=''){
   t.className='toast'+(type?' '+type:'');t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
 }
+function doLogin(){
+  const email=document.getElementById('lg-email')?.value||'';
+  const name=email.split('@')[0]||'Researcher';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sc-app').classList.add('active');
+  toast('Welcome, '+name+'!','ok');
+}
 function toggleSidebar(){
   document.querySelector('.sidebar').classList.toggle('open');
   document.getElementById('sidebar-overlay').classList.toggle('open');
@@ -2262,5 +2320,6 @@ document.querySelectorAll('.nav-item').forEach(item=>{
 // init
 updateSessionLabels();
 </script>
+</div><!-- end sc-app -->
 </body>
 </html>
