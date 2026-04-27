@@ -388,6 +388,16 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.err{background:#ef4444;}
 .toast.ok{background:#10b981;}
+.sidebar-toggle{display:none;position:fixed;top:14px;left:14px;z-index:200;width:32px;height:32px;border-radius:6px;background:var(--surface);border:1px solid var(--border);align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:4px;}
+.sidebar-toggle span{display:block;width:14px;height:1.5px;background:var(--muted);border-radius:1px;transition:all 0.2s;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99;backdrop-filter:blur(2px);}
+.sidebar-overlay.open{display:block;}
+@media(max-width:1280px){
+  .sidebar-toggle{display:flex;}
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s ease;z-index:150;}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0!important;}
+}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
@@ -413,7 +423,10 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 </style>
 </head>
 <body>
-
+<button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">
+  <span></span><span></span><span></span>
+</button>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 <aside class="sidebar">
   <div class="logo">
     <div class="logo-text">RubricAI</div>
@@ -2171,6 +2184,18 @@ function toast(msg,type=''){
   t.className='toast'+(type?' '+type:'');t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
 }
+function toggleSidebar(){
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    if(window.innerWidth<=1280){
+      document.querySelector('.sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('open');
+    }
+  });
+});
 
 // init
 updateSessionLabels();
