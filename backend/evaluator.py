@@ -85,15 +85,22 @@ def load_rubric(rubric_text=None):
 
 # ── RUBRIC SECTION EXTRACTOR ──────────────────────────────────
 def extract_indicator_sections(rubric_text, indicator_ids):
-    """
-    Extract only the rubric sections for the given indicator IDs.
-    Uses the same parsing logic as the frontend (sequential cluster/indicator counting).
-    Reduces token usage from ~15K to ~2-4K per call.
-    """
     if not indicator_ids or not rubric_text:
         return rubric_text
 
     lines = rubric_text.split('\n')
+
+    # Auto-detect indicator heading level (same logic as frontend)
+    ind_head_level = 5
+    for line in lines:
+        m = re.match(r'^(#{2,6})\s+.*indicator', line, re.I)
+        if m:
+            ind_head_level = len(m.group(1))
+            break
+    cluster_head_level = ind_head_level - 1
+    ind_prefix = '#' * ind_head_level + ' '
+    cluster_prefix = '#' * cluster_head_level + ' '
+
     cluster_idx = 0
     ind_idx = 0
     current_id = None
@@ -101,8 +108,10 @@ def extract_indicator_sections(rubric_text, indicator_ids):
     sections = {}
 
     for line in lines:
-        # Cluster header (####, but NOT #####)
-        if re.match(r'^####\s+', line) and not re.match(r'^#####', line):
+        is_ind = line.startswith(ind_prefix)
+        is_cluster = line.startswith(cluster_prefix) and not is_ind
+
+        if is_cluster:
             if current_id and current_lines:
                 sections[current_id] = '\n'.join(current_lines)
             current_id = None
@@ -111,13 +120,12 @@ def extract_indicator_sections(rubric_text, indicator_ids):
             ind_idx = 0
             continue
 
-        # Indicator header (#####)
-        if re.match(r'^#####\s+', line):
+        if is_ind:
             if current_id and current_lines:
                 sections[current_id] = '\n'.join(current_lines)
             current_id = None
             current_lines = []
-            header = re.sub(r'^#####\s+', '', line).replace('**', '').strip()
+            header = re.sub(r'^#+\s+', '', line).replace('**', '').strip()
             if re.search(r'indicator', header, re.I):
                 ind_idx += 1
                 current_id = f"C{cluster_idx}_I{ind_idx}"
@@ -130,7 +138,6 @@ def extract_indicator_sections(rubric_text, indicator_ids):
     if current_id and current_lines:
         sections[current_id] = '\n'.join(current_lines)
 
-    # Build output with only the requested indicators
     parts = []
     for ind_id in indicator_ids:
         if ind_id in sections:
@@ -141,7 +148,6 @@ def extract_indicator_sections(rubric_text, indicator_ids):
         return rubric_text
 
     return '\n\n'.join(parts)
-
 
 # ── CONTEXT BUILDER ───────────────────────────────────────────
 def build_context(setup_data=None):
@@ -169,9 +175,10 @@ def build_context(setup_data=None):
 # ── SERVER-SIDE SCORE CALCULATION ─────────────────────────────
 def calculate_scores(scores_dict, indicator_ids):
     """
-    Calculate comm and CT aggregate scores from returned scores.
-    CT indicators = clusters 3+ (heuristic: comm clusters are 1-2, CT clusters are 3+).
-    This avoids asking the model to compute averages, which is unreliable.
+    Calculate aggregate scores from returned scores.
+    comm = average of ALL scored indicators (overall performance).
+    ct   = average of the SECOND HALF of clusters (heuristic for critical thinking).
+    Works for any number of clusters and indicators — no hardcoding.
     """
     if not scores_dict or not indicator_ids:
         return 0.0, 0.0
@@ -180,6 +187,14 @@ def calculate_scores(scores_dict, indicator_ids):
         m = re.match(r'C(\d+)_', ind_id)
         return int(m.group(1)) if m else 0
 
+    # Find all unique cluster numbers present in the selected indicators
+    cluster_nums = sorted(set(cluster_num(i) for i in indicator_ids))
+    total_clusters = len(cluster_nums)
+
+    # CT = indicators from the upper half of clusters
+    # e.g. 4 clusters → CT = clusters 3+4, comm = all
+    ct_threshold = cluster_nums[total_clusters // 2] if total_clusters >= 2 else 999
+
     all_scores = [
         scores_dict[i]["score"] for i in indicator_ids
         if i in scores_dict and isinstance(scores_dict[i].get("score"), (int, float))
@@ -187,7 +202,7 @@ def calculate_scores(scores_dict, indicator_ids):
     ct_scores = [
         scores_dict[i]["score"] for i in indicator_ids
         if i in scores_dict and isinstance(scores_dict[i].get("score"), (int, float))
-        and cluster_num(i) >= 3
+        and cluster_num(i) >= ct_threshold
     ]
 
     comm = round(sum(all_scores) / len(all_scores), 2) if all_scores else 0.0
@@ -489,6 +504,15 @@ async def evaluate_participant_async(
             result["_detail"]["user"] = user_result
             for ind, data in user_result.get("scores", {}).items():
                 result[f"{ind}_user_score"] = data.get("score", 0)
+            # Per-cluster averages (handles any number of domains dynamically)
+            cluster_scores = {}
+            for ind, data in user_result.get("scores", {}).items():
+                m = re.match(r'C(\d+)_', ind)
+                if m:
+                    c = int(m.group(1))
+                    cluster_scores.setdefault(c, []).append(data.get("score", 0))
+            for c, vals in cluster_scores.items():
+                result[f"cluster_{c}_user_avg"] = round(sum(vals)/len(vals), 2)
 
         if client_result:
             comm, ct = calculate_scores(client_result.get("scores", {}), sel_c)
@@ -497,5 +521,14 @@ async def evaluate_participant_async(
             result["_detail"]["client"] = client_result
             for ind, data in client_result.get("scores", {}).items():
                 result[f"{ind}_client_score"] = data.get("score", 0)
+            # Per-cluster averages (handles any number of domains dynamically)
+            cluster_scores = {}
+            for ind, data in client_result.get("scores", {}).items():
+                m = re.match(r'C(\d+)_', ind)
+                if m:
+                    c = int(m.group(1))
+                    cluster_scores.setdefault(c, []).append(data.get("score", 0))
+            for c, vals in cluster_scores.items():
+                result[f"cluster_{c}_client_avg"] = round(sum(vals)/len(vals), 2)
 
         return result

@@ -348,8 +348,9 @@ async def export_csv(request: dict):
 
     output = io.StringIO()
     score_keys = sorted(set(k for s in students for k in s.keys() if k.endswith("_score")))
-    fieldnames = ["participant_id", "simulation", "completed",
-                  "comm_user", "ct_user", "comm_client", "ct_client"] + score_keys
+    cluster_keys = sorted(set(k for s in students for k in s.keys() if k.startswith("cluster_") and k.endswith("_avg")))
+    fieldnames = ["participant_id", "simulation", "batch", "completed",
+                  "comm_user", "ct_user", "comm_client", "ct_client"] + cluster_keys + score_keys
 
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
