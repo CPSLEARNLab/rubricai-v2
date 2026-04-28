@@ -489,8 +489,11 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
     </div>
     <div class="nav-item" id="nav-about" onclick="showPage('about')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>About & Workflow
-    </div>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>About & Workflow
+</div>
+<div class="nav-item" id="nav-guide" onclick="showPage('guide')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>How to Use
+</div>
     <div class="nav-label">Workspace</div>
     <div class="nav-item" id="nav-setup" onclick="showPage('setup')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Data Setup
@@ -798,6 +801,229 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
       </div>
 
     </div>
+
+<!-- HOW TO USE -->
+<div class="page" id="page-guide">
+  <div class="page-hdr">
+    <div class="page-title">How to Use RubricAI</div>
+    <div class="page-sub">Everything you need to know to run your first evaluation.</div>
+  </div>
+
+  <!-- QUICK START -->
+  <div class="card">
+    <div class="card-title">⚡ Quick Start — 4 Steps</div>
+    <div class="card-sub">Follow these steps in order for a complete evaluation run.</div>
+    <div class="step-list">
+      <div class="step-item active-step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">Data Setup <span style="font-size:11px;font-weight:400;color:var(--muted);">(optional but recommended)</span></div>
+          <div class="step-desc">Go to Data Setup and fill in your course name, cohort, simulation type, and researcher expectations. This context is fed directly to the AI — the more detail you provide, the more accurate and relevant the scores will be.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num inactive">2</div>
+        <div>
+          <div class="step-title">Upload Your Rubric</div>
+          <div class="step-desc">Go to Rubric Framework and upload your rubric file (.md, .txt). The app will auto-parse all clusters, indicators, and 4-level descriptors. Check that all indicators are detected correctly. Use the manual parser override dropdown if indicators are not showing up.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num inactive">3</div>
+        <div>
+          <div class="step-title">Upload Your CSV & Run</div>
+          <div class="step-desc">Go to Upload & Evaluate and upload your transcript CSV. Columns are auto-detected — click "Edit Mapping" to verify or fix column assignments. Then click Run Evaluation. Results stream in live as each participant is evaluated.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num inactive">4</div>
+        <div>
+          <div class="step-title">Review Results</div>
+          <div class="step-desc">Go to Class Overview to see all scores. Click any participant ID to see their full evaluation with rationale, feedback, and transcript quotes. Go to Summary & Charts for cohort-level analytics. Export CSV or PDF reports from the top right.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RUBRIC FORMAT -->
+  <div class="card">
+    <div class="card-title">📐 Rubric Format Guide</div>
+    <div class="card-sub">How to structure your rubric file for best results.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">✅ Supported Structure</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:11px;color:var(--muted);line-height:1.8;">
+          ## Domain Name<br>
+          ### Cluster 1: Name<br>
+          #### Indicator 1: Name<br>
+          | Level 1 | descriptor |<br>
+          | Level 2 | descriptor |<br>
+          | Level 3 | descriptor |<br>
+          | Level 4 | descriptor |<br>
+          #### Indicator 2: Name<br>
+          ...<br>
+          ### Cluster 2: Name<br>
+          ...<br>
+          ## Domain 2<br>
+          ...
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="padding:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;">
+          <div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:4px;">✓ Auto-detected</div>
+          <div style="font-size:11px;color:var(--muted);">Heading levels are auto-detected. Use any consistent ## / ### / #### structure.</div>
+        </div>
+        <div style="padding:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;">
+          <div style="font-size:12px;font-weight:700;color:#10b981;margin-bottom:4px;">✓ Any number of domains</div>
+          <div style="font-size:11px;color:var(--muted);">Communication, Critical Thinking, Professional Agency — or any domains you define. All will appear as KPI cards automatically.</div>
+        </div>
+        <div style="padding:12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;">
+          <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px;">⚠ If indicators not detected</div>
+          <div style="font-size:11px;color:var(--muted);">Use the Parser Level dropdown in Rubric Framework to manually select the heading level used for indicators.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV FORMAT -->
+  <div class="card">
+    <div class="card-title">📊 CSV Format Guide</div>
+    <div class="card-sub">What columns your transcript CSV needs.</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:var(--surface2);">
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;border-bottom:1px solid var(--border);">Column</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;border-bottom:1px solid var(--border);">Required?</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;border-bottom:1px solid var(--border);">Example Names</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;border-bottom:1px solid var(--border);">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 12px;font-weight:600;color:var(--text);">Participant ID</td>
+            <td style="padding:8px 12px;"><span style="background:rgba(239,68,68,.15);color:#fca5a5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Required</span></td>
+            <td style="padding:8px 12px;color:var(--muted);font-family:monospace;font-size:11px;">participant_id, student_id, id</td>
+            <td style="padding:8px 12px;color:var(--muted);">Unique identifier for each participant</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:var(--surface2);">
+            <td style="padding:8px 12px;font-weight:600;color:var(--text);">Session 1 Transcript</td>
+            <td style="padding:8px 12px;"><span style="background:rgba(239,68,68,.15);color:#fca5a5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Required</span></td>
+            <td style="padding:8px 12px;color:var(--muted);font-family:monospace;font-size:11px;">transcript_user, user_transcript</td>
+            <td style="padding:8px 12px;color:var(--muted);">Full transcript text for session 1</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 12px;font-weight:600;color:var(--text);">Session 2 Transcript</td>
+            <td style="padding:8px 12px;"><span style="background:rgba(245,158,11,.15);color:#fde68a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Optional</span></td>
+            <td style="padding:8px 12px;color:var(--muted);font-family:monospace;font-size:11px;">transcript_client, client_transcript</td>
+            <td style="padding:8px 12px;color:var(--muted);">Full transcript text for session 2</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:var(--surface2);">
+            <td style="padding:8px 12px;font-weight:600;color:var(--text);">Simulation</td>
+            <td style="padding:8px 12px;"><span style="background:rgba(245,158,11,.15);color:#fde68a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Optional</span></td>
+            <td style="padding:8px 12px;color:var(--muted);font-family:monospace;font-size:11px;">simulation, sim, course</td>
+            <td style="padding:8px 12px;color:var(--muted);">Name of the simulation or assignment</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 12px;font-weight:600;color:var(--text);">Completion Status</td>
+            <td style="padding:8px 12px;"><span style="background:rgba(245,158,11,.15);color:#fde68a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Optional</span></td>
+            <td style="padding:8px 12px;color:var(--muted);font-family:monospace;font-size:11px;">completed, status, done</td>
+            <td style="padding:8px 12px;color:var(--muted);">Values: Complete, Yes, 1, True</td>
+          </tr>
+          <tr style="background:var(--surface2);">
+            <td style="padding:8px 12px;font-weight:600;color:var(--text);">Batch / Class</td>
+            <td style="padding:8px 12px;"><span style="background:rgba(245,158,11,.15);color:#fde68a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">Optional</span></td>
+            <td style="padding:8px 12px;color:var(--muted);font-family:monospace;font-size:11px;">batch, group, section</td>
+            <td style="padding:8px 12px;color:var(--muted);">Used for Class A/B filtering in results</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;padding:10px 14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;font-size:12px;color:var(--muted);">
+      💡 <strong style="color:var(--text);">Tip:</strong> Column names are auto-detected. If your columns have different names, use the "Edit Mapping" button after uploading your CSV to manually assign them.
+    </div>
+  </div>
+
+  <!-- SESSION MAPPING -->
+  <div class="card">
+    <div class="card-title">🎛️ Session–Indicator Mapping</div>
+    <div class="card-sub">How to control which indicators are evaluated in which session.</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">What is session mapping?</div>
+        <div style="font-size:11px;color:var(--muted);">Each indicator in your rubric can be assigned to one or more sessions. For example, Communication indicators might only apply to the User Interview, while Critical Thinking indicators apply to both sessions.</div>
+      </div>
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Default behaviour</div>
+        <div style="font-size:11px;color:var(--muted);">By default, ALL indicators are assigned to ALL sessions. This means every indicator will be evaluated in every session that has a transcript.</div>
+      </div>
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--amber);">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;">How to change it</div>
+        <div style="font-size:11px;color:var(--muted);">In the Rubric Framework page, scroll down to the Session–Indicator Mapping table. Uncheck any session for an indicator to exclude it from that session's evaluation.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TROUBLESHOOTING -->
+  <div class="card">
+    <div class="card-title">🔧 Troubleshooting</div>
+    <div class="card-sub">Common issues and how to fix them.</div>
+    <div class="faq-list" id="guide-faq">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>My rubric uploaded but no indicators were found</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">The parser couldn't detect your heading levels. Go to Rubric Framework, find the "Parser Level" dropdown next to the upload button, and manually select the heading level used for your indicators (e.g. #### for Level 4 headings). Try each option until your indicators appear.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>My CSV uploaded but transcript columns weren't detected</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">Click "Edit Mapping" in the Upload & Evaluate page. A modal will show all your CSV columns — manually assign which column contains the transcript for each session. Make sure to save by clicking "Confirm Mapping".</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>Some participants show N/A scores</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">This usually means the transcript was too short (under 50 characters) or empty for that participant. Check your CSV to make sure the transcript columns are correctly mapped and contain full transcript text.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>Client conversation transcripts are not being evaluated</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">Check the column mapping — the client transcript column may not have been detected. Click "Edit Mapping" and make sure the correct column is assigned to "Session 2 Transcript". Also check that those participants actually have client transcripts in the CSV.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>The evaluation is slow or timing out</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">Large evaluations with many participants and indicators take time. The app evaluates up to 10 participants in parallel. A 16-participant run with 29 indicators typically takes 3–5 minutes. Make sure your backend is running and your API key has sufficient credits.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>Professional Agency or other domains not showing in KPI cards</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">Domain KPI cards are generated automatically from your rubric structure. Make sure your rubric uses ## headings for domain names (e.g. ## Professional Agency) and ### for clusters within each domain. Re-upload the rubric after fixing the structure.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>How do I set up my API key?</span><span class="faq-icon">+</span></div>
+        <div class="faq-a">Create a file called .env in the backend folder with the line: ANTHROPIC_API_KEY=your-key-here. You can get an API key from console.anthropic.com. Make sure you have sufficient credits — a 16-participant run with 29 indicators costs approximately $1.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  <div class="card">
+    <div class="card-title">💡 Tips for Best Results</div>
+    <div class="card-sub">Get the most accurate scores from RubricAI.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--green);">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Fill in Data Setup</div>
+        <div style="font-size:11px;color:var(--muted);">The more context you give the AI about your course, simulation type, and what to look for, the more accurate and relevant the scores will be.</div>
+      </div>
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--green);">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Use clear rubric descriptors</div>
+        <div style="font-size:11px;color:var(--muted);">The AI scores strictly against your rubric level descriptors. The more specific and distinct each level is, the more accurate the scoring will be.</div>
+      </div>
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--green);">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Check column mapping</div>
+        <div style="font-size:11px;color:var(--muted);">Always click "Edit Mapping" after uploading your CSV to verify that transcript columns are correctly assigned before running the evaluation.</div>
+      </div>
+      <div style="padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--green);">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;">Use the AI Assistant</div>
+        <div style="font-size:11px;color:var(--muted);">After running an evaluation, use the AI Assistant tab to ask questions about results — who needs support, what patterns exist, how classes compare.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
     <!-- ABOUT -->
     <div class="page" id="page-about">
@@ -1922,6 +2148,12 @@ function downloadStudentCSV(pid){
 
 function downloadStudentPDF(pid){
   const s=results.find(x=>x.participant_id===pid);if(!s)return;
+  const domainMap={};
+  parsedRubric.forEach(c=>{
+    const d=c.domain||'General';
+    if(!domainMap[d]) domainMap[d]=[];
+    domainMap[d].push(c.clusterIdx);
+  });
   const w=window.open('','_blank');
   const sc=v=>v>=4?'#10b981':v>=3?'#d97706':v>=2?'#ea580c':'#dc2626';
   const lv=v=>({1:'Beginning',2:'Developing',3:'Applying',4:'Mastery'}[v]||'N/A');
@@ -1965,12 +2197,12 @@ function downloadStudentPDF(pid){
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
-      ${[
-        {l:setupData.sess1||'User Interview',sub:'Communication',v:s.comm_user},
-        {l:setupData.sess1||'User Interview',sub:'Critical Thinking',v:s.ct_user},
-        {l:setupData.sess2||'Client Conversation',sub:'Communication',v:s.comm_client},
-        {l:setupData.sess2||'Client Conversation',sub:'Critical Thinking',v:s.ct_client}
-      ].map(({l,sub,v})=>{
+      
+${Object.entries(domainMap).flatMap(([domain,clusterIdxs])=>[
+        {l:setupData.sess1||'User Interview',sub:domain+' ('+(setupData.sess1||'User')+')',v:(()=>{const vals=clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null);return vals.length?parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)):null;})()},
+        {l:setupData.sess2||'Client Conversation',sub:domain+' ('+(setupData.sess2||'Client')+')',v:(()=>{const vals=clusterIdxs.map(ci=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null);return vals.length?parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)):null;})()}
+      ]).filter(({v})=>v!=null).map(({l,sub,v})=>{
+
         const c=v>=4?'#10b981':v>=3?'#d97706':v>=2?'#ea580c':v>=1?'#dc2626':'#94a3b8';
         return`<div style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;text-align:center;">
           <div style="font-size:18px;font-weight:800;color:${c}">${v??'N/A'}</div>
@@ -2248,7 +2480,14 @@ async function exportCSV(){
 async function exportPDF(){
   if(!results.length){toast('No data to export.','err');return;}
   try{
-    const r=await fetch(`${API}/api/export/pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students:results,setup_data:setupData})});
+    const domainMap={};
+    parsedRubric.forEach(c=>{const d=c.domain||'General';if(!domainMap[d])domainMap[d]=[];domainMap[d].push(c.clusterIdx);});
+    const domainScores=Object.entries(domainMap).map(([domain,clusterIdxs])=>({
+      domain,
+      user_avg:parseFloat((clusterIdxs.flatMap(ci=>results.map(s=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null)).reduce((a,b,_,arr)=>a+b/arr.length,0)||0).toFixed(2)),
+      client_avg:parseFloat((clusterIdxs.flatMap(ci=>results.map(s=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null)).reduce((a,b,_,arr)=>a+b/arr.length,0)||0).toFixed(2))
+    }));
+    const r=await fetch(`${API}/api/export/pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students:results,setup_data:setupData,domain_scores:domainScores})});
     if(!r.ok) throw new Error();
     const b=await r.blob();
     const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='rubricai_report.pdf';a.click();
@@ -2367,10 +2606,11 @@ function showPage(p){
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   document.getElementById('nav-'+p)?.classList.add('active');
   document.querySelector('.content').classList.toggle('chat-mode',p==='assistant');
-  const T={landing:'Home',about:'About & Workflow',setup:'Data Setup',rubric:'Rubric Framework',upload:'Upload & Evaluate',overview:'Class Overview',summary:'Summary & Charts',assistant:'AI Assistant'};
+  const T={landing:'Home',about:'About & Workflow',guide:'How to Use',setup:'Data Setup',rubric:'Rubric Framework',upload:'Upload & Evaluate',overview:'Class Overview',summary:'Summary & Charts',assistant:'AI Assistant'};
   const S={
     landing:'AI-powered rubric-based interview assessment',
     about:'Step-by-step workflow guide for researchers and educators',
+    guide:'Complete guide for new users — everything you need to know',
     setup:'Configure evaluation context — fed directly to AI for improved scoring',
     rubric:'Upload rubric · Select indicators for evaluation',
     upload:'Upload transcript CSV · Run AI evaluation',

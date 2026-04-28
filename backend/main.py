@@ -422,16 +422,27 @@ async def export_pdf(request: dict):
     story.append(Paragraph("Cohort Summary", head_style))
     tot = len(students)
     comp = sum(1 for s in students if s.get("completed") == 1)
-    comm_vals = [s["comm_user"] for s in students if s.get("comm_user") is not None]
-    ct_vals = [s["ct_user"] for s in students if s.get("ct_user") is not None]
-    avg_comm = f"{sum(comm_vals)/len(comm_vals):.2f}" if comm_vals else "N/A"
-    avg_ct = f"{sum(ct_vals)/len(ct_vals):.2f}" if ct_vals else "N/A"
-
-    summary_data = [
-        ["Total Participants", "Completed", "Avg Comm Score", "Avg CT Score"],
-        [str(tot), str(comp), avg_comm, avg_ct]
-    ]
-    summary_table = Table(summary_data, colWidths=[1.5*inch]*4)
+    domain_scores = request.get("domain_scores", [])
+    sum_headers = ["Total Participants", "Completed"]
+    sum_vals = [str(tot), str(comp)]
+    if domain_scores:
+        for ds in domain_scores:
+            if ds.get("user_avg"):
+                sum_headers.append(f"{ds['domain']} (User)")
+                sum_vals.append(str(ds["user_avg"]))
+            if ds.get("client_avg"):
+                sum_headers.append(f"{ds['domain']} (Client)")
+                sum_vals.append(str(ds["client_avg"]))
+    else:
+        comm_vals = [s["comm_user"] for s in students if s.get("comm_user") is not None]
+        ct_vals = [s["ct_user"] for s in students if s.get("ct_user") is not None]
+        sum_headers += ["Avg Comm Score", "Avg CT Score"]
+        sum_vals += [f"{sum(comm_vals)/len(comm_vals):.2f}" if comm_vals else "N/A",
+                     f"{sum(ct_vals)/len(ct_vals):.2f}" if ct_vals else "N/A"]
+    col_n = len(sum_headers)
+    col_w_s = min(1.5, 7.0/col_n)
+    summary_data = [sum_headers, sum_vals]
+    summary_table = Table(summary_data, colWidths=[col_w_s*inch]*col_n)
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#64748b')),
@@ -474,17 +485,27 @@ async def export_pdf(request: dict):
                 borderColor=colors.HexColor('#e2e8f0'), borderWidth=0.5)
         ))
 
-        # Score summary
-        score_row = [
-            ["User Interview Comm", "User Interview CT", "Client Conv Comm", "Client Conv CT"],
-            [
-                str(s.get("comm_user") or "N/A"),
-                str(s.get("ct_user") or "N/A"),
-                str(s.get("comm_client") or "N/A"),
-                str(s.get("ct_client") or "N/A")
-            ]
-        ]
-        score_table = Table(score_row, colWidths=[1.5*inch]*4)
+        # Score summary — dynamic domains
+        s_headers = []
+        s_vals = []
+        if domain_scores:
+            for ds in domain_scores:
+                if ds.get("user_avg") is not None:
+                    s_headers.append(f"{ds['domain']} (User)")
+                    vals = [s.get(f"cluster_{ci}_user_avg") for ci in range(1,20) if s.get(f"cluster_{ci}_user_avg") is not None]
+                    s_vals.append(str(round(sum(vals)/len(vals),2)) if vals else "N/A")
+                if ds.get("client_avg") is not None:
+                    s_headers.append(f"{ds['domain']} (Client)")
+                    vals = [s.get(f"cluster_{ci}_client_avg") for ci in range(1,20) if s.get(f"cluster_{ci}_client_avg") is not None]
+                    s_vals.append(str(round(sum(vals)/len(vals),2)) if vals else "N/A")
+        else:
+            s_headers = ["User Interview Comm", "User Interview CT", "Client Conv Comm", "Client Conv CT"]
+            s_vals = [str(s.get("comm_user") or "N/A"), str(s.get("ct_user") or "N/A"),
+                      str(s.get("comm_client") or "N/A"), str(s.get("ct_client") or "N/A")]
+        sc_n = len(s_headers)
+        sc_w = min(1.5, 7.0/sc_n)
+        score_row = [s_headers, s_vals]
+        score_table = Table(score_row, colWidths=[sc_w*inch]*sc_n)
         score_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
             ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#64748b')),
@@ -623,16 +644,19 @@ async def export_cohort_pdf(request: dict):
 
     # ── KPI Table ──
     story.append(Paragraph("Cohort KPIs", head_style))
-    kpi_headers = ["Total Participants", "Completed", "Avg Comm (User)", "Avg CT (User)"]
-    kpi_vals = [
-        str(kpis.get("total", "N/A")),
-        str(kpis.get("completed", "N/A")),
-        str(kpis.get("avg_comm_user") or "N/A"),
-        str(kpis.get("avg_ct_user") or "N/A"),
-    ]
-    if kpis.get("avg_comm_client") is not None:
-        kpi_headers += ["Avg Comm (Client)", "Avg CT (Client)"]
-        kpi_vals += [str(kpis.get("avg_comm_client") or "N/A"), str(kpis.get("avg_ct_client") or "N/A")]
+    domain_scores = request.get("domain_scores", [])
+    kpi_headers = ["Total Participants", "Completed"]
+    kpi_vals = [str(kpis.get("total", "N/A")), str(kpis.get("completed", "N/A"))]
+    for ds in domain_scores:
+        if ds.get("user_avg"):
+            kpi_headers.append(f"{ds['domain']} (User)")
+            kpi_vals.append(str(ds["user_avg"]))
+        if ds.get("client_avg"):
+            kpi_headers.append(f"{ds['domain']} (Client)")
+            kpi_vals.append(str(ds["client_avg"]))
+    if not domain_scores:
+        kpi_headers += ["Avg Comm (User)", "Avg CT (User)"]
+        kpi_vals += [str(kpis.get("avg_comm_user") or "N/A"), str(kpis.get("avg_ct_user") or "N/A")]
     n = len(kpi_headers)
     col_w = 7.0 / n * inch
     kpi_table = Table([kpi_headers, kpi_vals], colWidths=[col_w]*n)
@@ -750,55 +774,46 @@ async def export_cohort_pdf(request: dict):
         bar_max_w = 240
         val_w = 40
         total_cw = label_w + bar_max_w + val_w + 10
-        total_ch = (bar_h + gap) * len(indicator_averages) + 24
-
-        ind_d = Drawing(total_cw, total_ch)
+        chunk_size = 30
         score_colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
-
-        for i, row in enumerate(reversed(indicator_averages)):
-            y = 12 + i * (bar_h + gap)
-            avg = row.get("avg") or 0
-            bw = int(avg / max_val * bar_max_w)
-            # Pick color based on avg quartile
-            cidx = min(int(avg / max_val * 4), 3) if avg > 0 else 0
-            clr = score_colors[cidx]
-
-            # Background track
-            ind_d.add(Rect(label_w, y, bar_max_w, bar_h,
-                           fillColor=colors.HexColor('#f1f5f9'), strokeColor=None))
-            # Value bar
-            if bw > 0:
-                ind_d.add(Rect(label_w, y, bw, bar_h,
-                               fillColor=colors.HexColor(clr), strokeColor=None))
-            # Indicator label (truncated)
-            name = row.get("name") or row.get("id", "")
-            if len(name) > 26:
-                name = name[:25] + "…"
-            sess = row.get("session", "")
-            label_text = f"{name} ({sess})" if sess else name
-            if len(label_text) > 30:
-                label_text = label_text[:29] + "…"
-            ind_d.add(String(label_w - 5, y + 3, label_text, fontSize=6.5,
-                             textAnchor='end', fillColor=colors.HexColor('#334155')))
-            # Numeric value
-            avg_str = f"{avg:.2f}" if avg else "0.00"
-            ind_d.add(String(label_w + bw + 5, y + 3, avg_str, fontSize=7,
-                             textAnchor='start', fillColor=colors.HexColor('#334155')))
-
-        # Scale ticks at bottom
-        for tick_val in [1, 2, 3, 4]:
-            tx = label_w + int(tick_val / max_val * bar_max_w)
-            ind_d.add(String(tx, 3, str(tick_val), fontSize=6, textAnchor='middle',
-                             fillColor=colors.HexColor('#94a3b8')))
-
-        story.append(ind_d)
-        story.append(Spacer(1, 16))
-
+        for chunk_start in range(0, len(indicator_averages), chunk_size):
+            chunk = indicator_averages[chunk_start:chunk_start+chunk_size]
+            total_ch = (bar_h + gap) * len(chunk) + 24
+            ind_d = Drawing(total_cw, total_ch)
+            for i, row in enumerate(reversed(chunk)):
+                y = 12 + i * (bar_h + gap)
+                avg = row.get("avg") or 0
+                bw = int(avg / max_val * bar_max_w)
+                cidx = min(int(avg / max_val * 4), 3) if avg > 0 else 0
+                clr = score_colors[cidx]
+                ind_d.add(Rect(label_w, y, bar_max_w, bar_h,
+                               fillColor=colors.HexColor('#f1f5f9'), strokeColor=None))
+                if bw > 0:
+                    ind_d.add(Rect(label_w, y, bw, bar_h,
+                                   fillColor=colors.HexColor(clr), strokeColor=None))
+                name = row.get("name") or row.get("id", "")
+                if len(name) > 26:
+                    name = name[:25] + "..."
+                sess = row.get("session", "")
+                label_text = f"{name} ({sess})" if sess else name
+                if len(label_text) > 30:
+                    label_text = label_text[:29] + "..."
+                ind_d.add(String(label_w - 5, y + 3, label_text, fontSize=6.5,
+                                 textAnchor='end', fillColor=colors.HexColor('#334155')))
+                avg_str = f"{avg:.2f}" if avg else "0.00"
+                ind_d.add(String(label_w + bw + 5, y + 3, avg_str, fontSize=7,
+                                 textAnchor='start', fillColor=colors.HexColor('#334155')))
+            for tick_val in [1, 2, 3, 4]:
+                tx = label_w + int(tick_val / max_val * bar_max_w)
+                ind_d.add(String(tx, 3, str(tick_val), fontSize=6, textAnchor='middle',
+                                 fillColor=colors.HexColor('#94a3b8')))
+            story.append(ind_d)
+            story.append(Spacer(1, 12))
     # ── AI Cohort Summary ──
     if cohort_summary:
         story.append(Paragraph("AI Cohort Summary", head_style))
         story.append(Paragraph(cohort_summary, body_style))
-        story.append(Spacer(1, 16))
+        story.append(Spacer(1, 12))
 
 
     def add_footer(canvas, doc):
