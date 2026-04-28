@@ -122,10 +122,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .search-input{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:12px;color:var(--text);font-family:'Inter',sans-serif;width:200px;outline:none;}
 .search-input:focus{border-color:var(--accent);}
 .search-input::placeholder{color:var(--subtle);}
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
 .stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gradient);}
 .stat-label{font-size:10px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
-.stat-value{font-size:22px;font-weight:800;color:var(--text);line-height:1;margin-bottom:3px;letter-spacing:-1px;}
+.stat-value{font-size:18px;font-weight:800;color:var(--text);line-height:1;margin-bottom:3px;letter-spacing:-1px;}
 .stat-meta{font-size:11px;color:var(--subtle);}
 .sess-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;}
 .sess-tab{padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--subtle);font-family:'Inter',sans-serif;border-bottom:2px solid transparent;transition:all .15s;}
@@ -210,7 +211,7 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
 .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gradient);}
-.kpi-val{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-1px;line-height:1;margin-bottom:4px;}
+.kpi-val{font-size:30px;font-weight:800;color:var(--text);letter-spacing:-1px;line-height:1;margin-bottom:4px;}
 .kpi-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--subtle);margin-bottom:6px;}
 .kpi-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
 .kpi-up{background:rgba(16,185,129,.15);color:#6ee7b7;}
@@ -345,7 +346,7 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 .lp-cta-h em{font-style:normal;color:var(--accent);}
 .lp-cta-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
 /* ROADMAP + BUILT BY */
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
+.roadmap-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
 .tech-tag{background:var(--surface2);border:1px solid var(--border);padding:3px 10px;border-radius:20px;font-size:11px;color:var(--muted);}
 .home-section{margin-bottom:0;}
 .sec-title{font-size:19px;font-weight:800;color:var(--text);margin-bottom:6px;}
@@ -847,16 +848,6 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
           <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
           <h3>Upload Rubric File</h3>
           <p>.md · .txt · .pdf · .docx — any format</p>
-          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-            <span style="font-size:11px;color:var(--muted);">Parser level:</span>
-            <select id="parser-level" class="field-select" style="width:auto;padding:3px 8px;font-size:11px;">
-              <option value="auto">Auto-detect</option>
-              <option value="2">## (H2)</option>
-              <option value="3">### (H3)</option>
-              <option value="4">#### (H4)</option>
-              <option value="5">##### (H5)</option>
-            </select>
-          </div>
           <div class="file-tag" id="rubric-name"></div>
         </div>
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px;display:flex;align-items:center;gap:14px;">
@@ -1106,16 +1097,13 @@ function parseRubricMarkdown(text){
   let curCluster=null,curInd=null,clusterIdx=0,indIdx=0;
 
   // Auto-detect heading level used for indicators in this rubric
-  const manualLevel=document.getElementById('parser-level')?.value;
-let indHeadLevel=5;
-if(manualLevel&&manualLevel!=='auto'){
-  indHeadLevel=parseInt(manualLevel);
-}else{
+  let indHeadLevel=5;
+let currentDomain='General';
+const domainPrefix='## ';
   for(const line of lines){
     const m=line.match(/^(#{2,6})\s+.*indicator/i);
     if(m){indHeadLevel=m[1].length;break;}
   }
-}
   const clusterHeadLevel=indHeadLevel-1;
   const indPrefix='#'.repeat(indHeadLevel)+' ';
   const clusterPrefix='#'.repeat(clusterHeadLevel)+' ';
@@ -1137,11 +1125,15 @@ if(manualLevel&&manualLevel!=='auto'){
     if(!trimmed) continue;
     const isInd=line.startsWith(indPrefix);
     const isCluster=line.startsWith(clusterPrefix)&&!isInd;
+    if(line.startsWith(domainPrefix)&&!isInd&&!line.startsWith(clusterPrefix)){
+      currentDomain=line.replace(/^#+\s+/,'').replace(/\*\*/g,'').trim();
+      continue;
+    }
     if(isCluster){
       saveCluster();
       clusterIdx++;indIdx=0;
       const title=line.replace(/^#+\s+/,'').replace(/\*\*/g,'').trim();
-      curCluster={cluster:title,session:guessSession(line),inds:[],clusterIdx};
+      curCluster={cluster:title,session:guessSession(line),inds:[],clusterIdx,domain:currentDomain};
       continue;
     }
     if(isInd){
@@ -1674,16 +1666,24 @@ function renderOv(){
   // Filter stat cards to active batch
   const statsData=activeBatch?results.filter(s=>(s.batch||'')===activeBatch):results;
   const statComp=statsData.filter(s=>s.completed===1).length;
-  const statCv=statsData.map(s=>s.comm_user).filter(v=>v!=null);
-  const statCtv=statsData.map(s=>s.ct_user).filter(v=>v!=null);
-  const statAvg=statCv.length?(statCv.reduce((a,b)=>a+b,0)/statCv.length).toFixed(2):'N/A';
-  const statAvgCT=statCtv.length?(statCtv.reduce((a,b)=>a+b,0)/statCtv.length).toFixed(2):'N/A';
-  const batchLabel=activeBatch?` — ${activeBatch}`:'';
-  document.getElementById('stats-row').innerHTML=`
-    <div class="stat-card"><div class="stat-label">Total Participants${batchLabel}</div><div class="stat-value">${statsData.length}</div><div class="stat-meta">Evaluated${batchMeta}</div></div>
-    <div class="stat-card"><div class="stat-label">Completed${batchLabel}</div><div class="stat-value">${statComp}</div><div class="stat-meta">Sessions completed</div></div>
-    <div class="stat-card"><div class="stat-label">Avg Comm Score${batchLabel}</div><div class="stat-value" style="color:${scColor(parseFloat(statAvg))}">${statAvg}</div><div class="stat-meta">User Interview / 4.0</div></div>
-    <div class="stat-card"><div class="stat-label">Avg CT Score${batchLabel}</div><div class="stat-value" style="color:${scColor(parseFloat(statAvgCT))}">${statAvgCT}</div><div class="stat-meta">User Interview / 4.0</div></div>`;
+const domainMap={};
+parsedRubric.forEach(c=>{
+  const d=c.domain||'General';
+  if(!domainMap[d]) domainMap[d]=[];
+  domainMap[d].push(c.clusterIdx);
+});
+const domainColors={'Communication':'var(--accent)','Critical Thinking':'var(--amber)','Professional Agency':'#a78bfa'};
+const defaultColors=['var(--accent)','var(--amber)','#a78bfa','var(--green)','var(--orange)'];
+const domainCards=Object.entries(domainMap).map(([domain,clusterIdxs],i)=>{
+  const vals=statsData.flatMap(s=>clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null));
+  const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'N/A';
+  const col=domainColors[domain]||defaultColors[i%defaultColors.length];
+  return`<div class="stat-card"><div class="stat-label">${domain}</div><div class="stat-value" style="color:${col}">${avg}</div><div class="stat-meta">/ 4.0</div></div>`;
+}).join('');
+document.getElementById('stats-row').innerHTML=`
+  <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${statsData.length}</div><div class="stat-meta">Evaluated</div></div>
+  <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value">${statComp}</div><div class="stat-meta">Sessions completed</div></div>
+  ${domainCards}`;
   document.getElementById('tbl-meta').textContent=[...new Set(results.map(s=>s.simulation))].join(', ')+' · '+tot+' participants';
   document.getElementById('ov-empty').style.display='none';
   document.getElementById('ov-content').style.display='block';
@@ -1949,6 +1949,14 @@ function setSummaryBatch(b){
 }
 function renderSum(){
   if(!results.length)return;
+  const domainMap={};
+parsedRubric.forEach(c=>{
+  const d=c.domain||'General';
+  if(!domainMap[d]) domainMap[d]=[];
+  domainMap[d].push(c.clusterIdx);
+});
+const domainColors={'Communication':'var(--accent)','Critical Thinking':'var(--amber)','Professional Agency':'#a78bfa'};
+const defaultColors=['var(--accent)','var(--amber)','#a78bfa','var(--green)','var(--orange)'];
   document.getElementById('sum-empty').style.display='none';
   document.getElementById('sum-content').style.display='block';
   if(setupData.sess1){
@@ -1996,10 +2004,15 @@ function renderSum(){
   allScores.forEach(v=>{const n=Math.min(4,Math.max(1,Math.round(v)));dist[n-1]++;});
   const maxD=Math.max(...dist)||1;
 
-  document.getElementById('dash-overview').innerHTML=`
+const domainKpiCards=Object.entries(domainMap).map(([domain,clusterIdxs],i)=>{
+  const vals=data.flatMap(s=>clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null));
+  const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'N/A';
+  const col=domainColors[domain]||defaultColors[i%defaultColors.length];
+  return`<div class="kpi-card"><div class="kpi-label">${domain}</div><div class="kpi-val" style="color:${col}">${avg}</div><span class="kpi-badge kpi-neutral">out of 4</span></div>`;
+}).join('');
+document.getElementById('dash-overview').innerHTML=`
     <div class="kpi-row">
-      <div class="kpi-card"><div class="kpi-label">Avg ${setupData.sess1||'User Interview'} Comm</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCU))}">${avgCU}</div><span class="kpi-badge kpi-neutral">out of 4</span></div>
-      <div class="kpi-card"><div class="kpi-label">Avg ${setupData.sess1||'User Interview'} CT</div><div class="kpi-val" style="color:${scColor(parseFloat(avgCTU))}">${avgCTU}</div><span class="kpi-badge kpi-neutral">out of 4</span></div>
+      ${domainKpiCards}
       <div class="kpi-card"><div class="kpi-label">Completion Rate</div><div class="kpi-val">${compRate}%</div><span class="kpi-badge ${compRate>=80?'kpi-up':'kpi-down'}">${comp} of ${tot}</span></div>
       <div class="kpi-card"><div class="kpi-label">Total Evaluated</div><div class="kpi-val">${tot}</div><span class="kpi-badge kpi-neutral">${[...new Set(data.map(s=>s.simulation))].length} simulations</span></div>
     </div>

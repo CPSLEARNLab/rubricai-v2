@@ -48,9 +48,9 @@ def call_claude(prompt, max_retries=3):
     for attempt in range(max_retries):
         try:
             response = client.messages.create(
-                model=CLAUDE_MODEL,
-                max_tokens=4096,
-                temperature=0.0,
+    model=CLAUDE_MODEL,
+    max_tokens=8192,
+    temperature=0.0,
                 messages=[{"role": "user", "content": prompt}]
             )
             # track token usage
