@@ -1861,8 +1861,9 @@ async function runEval(){
   if(selectedInds.size===0){toast('Select at least one indicator in Rubric Framework.','err');btn.disabled=false;return;}
   const pw=document.getElementById('prog-wrap'),pb=document.getElementById('prog-bar'),
     ps=document.getElementById('prog-status');
-  pw.style.display='block';pb.style.width='5%';
+    pw.style.display='block';pb.style.width='5%';
   ps.textContent='Uploading files...';
+  toast('AI scores are for research and instructional support only — not final grades.','');
   const fd=new FormData();
   fd.append('file',file);
   if(rubricFile) fd.append('rubric',rubricFile);
@@ -2244,7 +2245,7 @@ ${Object.entries(domainMap).flatMap(([domain,clusterIdxs])=>[
     </div>
     ${rows}
     <div style="margin-top:20px;text-align:center;font-size:9px;color:#94a3b8;padding-top:10px;border-top:1px solid #e2e8f0;">
-      RubricAI v2 · CPS LEARN Lab · Northeastern University · Confidential Research Record
+    RubricAI v2 · CPS LEARN Lab · Northeastern University · AI-generated scores are for research and instructional support only, not final grades.
     </div>
   </div></body></html>`);
   w.document.close();setTimeout(()=>w.print(),600);

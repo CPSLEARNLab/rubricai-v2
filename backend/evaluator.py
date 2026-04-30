@@ -308,8 +308,21 @@ Return ONLY valid JSON:
         return parsed
 
     except json.JSONDecodeError as e:
-        print(f"    ✗ JSON error — {participant_id} [{session_label}]: {e}")
-        return None
+        print(f"    ✗ JSON error — {participant_id} [{session_label}]: {e} — retrying once")
+        try:
+            text = call_claude(prompt)
+            if not text:
+                return None
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
+            parsed = json.loads(text)
+            print(f"    ✓ Retry succeeded — {participant_id} [{session_label}]")
+            return parsed
+        except Exception as retry_e:
+            print(f"    ✗ Retry failed — {participant_id} [{session_label}]: {retry_e}")
+            return None
     except Exception as e:
         print(f"    ✗ Error — {participant_id} [{session_label}]: {e}")
         return None
