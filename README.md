@@ -1,158 +1,185 @@
-# RubricAI v2 — CPS LEARN Lab · Northeastern University
+# RubricAI v2
 
-AI-powered rubric-based transcript evaluation at institutional scale.
-
----
-
-## What It Does
-
-RubricAI v2 evaluates student simulation transcripts against a structured rubric using Claude AI. Upload any rubric and any CSV of transcripts — the system scores every participant on every indicator with rationale, actionable feedback, and direct transcript quotes.
+AI-powered rubric-based transcript evaluation for academic simulation assessments.
+Built at the CPS LEARN Lab · Northeastern University
 
 ---
 
-## Stack
+## Overview
+
+RubricAI v2 evaluates student simulation transcripts against a structured rubric using Claude AI. Researchers and instructors upload a rubric and a CSV of transcripts — the system scores every participant on every indicator and returns evidence-based scores, rationale, actionable feedback, and direct transcript quotes.
+
+The tool is designed for institutional-scale evaluation with full researcher control over which rubric, which indicators, and which sessions are assessed.
+
+---
+
+## Tech Stack
 
 - Frontend: Vanilla JS single-page app (frontend/index.html)
 - Backend: FastAPI + Python (backend/main.py, backend/evaluator.py)
-- AI: Claude Haiku 4.5 via Anthropic API
-- PDFs: ReportLab
+- AI Engine: Claude Haiku 4.5 via Anthropic API
+- PDF Export: ReportLab
 
 ---
 
-## Setup
+## Getting Started
 
-### 1. Clone the repo
+Prerequisites
+- Python 3.10+
+- An Anthropic API key from console.anthropic.com
 
+1. Clone the repository
 git clone https://github.com/tanvisanjeev/rubricai-v2.git
 cd rubricai-v2
 
-### 2. Backend setup
-
+2. Set up the backend
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-Create backend/.env:
+3. Create backend/.env
 ANTHROPIC_API_KEY=your-key-here
 
-Get your API key from console.anthropic.com
-
-### 3. Run the backend
-
+4. Start the backend
 cd backend && source venv/bin/activate && uvicorn main:app --reload --port 8000
 
-### 4. Run the frontend
-
+5. Start the frontend
 cd frontend && python3 -m http.server 3001
 
-### 5. Open in browser
-
+6. Open in browser
 http://localhost:3001/index.html
 
 ---
 
 ## How to Use
 
-### Step 1 - Data Setup (recommended)
-Fill in course name, cohort, simulation type, and researcher expectations. This context is sent directly to Claude to improve scoring accuracy.
+Step 1 - Data Setup (recommended)
+Go to Data Setup and fill in course name, cohort, simulation type, and researcher expectations.
+This context is passed directly to the AI to improve scoring accuracy and relevance.
 
-### Step 2 - Rubric Framework
-Upload your rubric file (.md or .txt). The app auto-parses all domains, clusters, and indicators.
+Step 2 - Rubric Framework
+Upload your rubric file (.md or .txt).
+The app automatically parses all domains, clusters, and indicators.
 
-Rubric format:
+Expected rubric structure:
 ## Domain Name
-### Cluster 1: Name
+### Cluster Name
 #### Indicator 1: Name
 | Level 1 | descriptor |
 | Level 2 | descriptor |
 | Level 3 | descriptor |
 | Level 4 | descriptor |
 
-Use the Session-Indicator Mapping table to assign indicators to sessions. All assigned to all sessions by default.
+The Session-Indicator Mapping table appears below the rubric, organised by Domain > Cluster > Indicator.
+By default all indicators are assigned to all sessions.
+Instructors can freely reassign any indicator to any session or deselect indicators they do not want evaluated.
 
-### Step 3 - Upload and Evaluate
-Upload your transcript CSV. Columns are auto-detected — use Edit Mapping to verify or fix assignments. Click Run Evaluation.
+Step 3 - Upload and Evaluate
+Upload your transcript CSV. Column names are auto-detected.
+Use Edit Mapping to verify or correct column assignments before running.
+Click Run Evaluation — results stream in live as each participant is scored.
 
-Required CSV columns:
+Supported CSV columns:
 - Participant ID (required): participant_id, student_id, id
 - Session 1 Transcript (required): transcript_user, user_transcript
 - Session 2 Transcript (optional): transcript_client, client_transcript
-- Simulation (optional): simulation, sim, course
+- Simulation Name (optional): simulation, sim, course
 - Completion Status (optional): completed, status, done
 - Batch / Class (optional): batch, group, section
 
-### Step 4 - Review Results
-- Class Overview: all participant scores, all indicators, filter by class/batch
-- Summary & Charts: cohort KPIs, score distribution, indicator averages, AI summary
-- Click any Participant ID to see full evaluation with rationale, feedback, and transcript quotes
+Step 4 - Review Results
+- Class Overview: all participant scores across all indicators, filterable by batch or class
+- Participant Modal: click any participant ID to see full evaluation with all domain scores, rationale, feedback, and transcript quotes
+- Summary & Charts: cohort-level KPIs by domain, score distribution, indicator averages, AI cohort summary
 
-### Step 5 - Export
-- Spreadsheet Export: full scores CSV from Class Overview
-- Formatted Report: per-student PDF with all indicator scores
-- Cohort Spreadsheet: cohort summary CSV from Summary & Charts
-- Cohort Report: cohort PDF with KPIs, charts, and AI summary
+Step 5 - Export
+- Spreadsheet Export (Class Overview): full indicator scores per participant
+- Formatted Report (Class Overview): per-student PDF with all scores and evidence
+- Cohort Spreadsheet (Summary & Charts): cohort summary with all domain averages
+- Cohort Report (Summary & Charts): cohort PDF with KPIs, charts, and AI summary
 
 ---
 
 ## Dynamic Domain System
 
-Domains are auto-detected from your rubric ## headings. Any rubric with any number of domains will automatically show:
+Domains are auto-detected from ## headings in your rubric.
+Any rubric with any number of domains will automatically populate:
 - Domain KPI cards on Class Overview
-- Domain KPI cards on Summary & Charts tabs
-- Domain scores in participant modal
+- Domain KPI cards on all Summary & Charts tabs
+- Domain scores in the participant modal
 - Domain scores in student PDF reports
 - Domain averages in cohort PDF and spreadsheet exports
-- All domain scores in AI cohort summary
+- Domain scores in the AI cohort summary
 
 No hardcoding. Upload any rubric and everything adapts.
 
 ---
 
+## Session-Indicator Mapping
+
+The Rubric Framework page shows a full mapping table organised by Domain > Cluster > Indicators.
+Instructors can:
+- Assign any indicator to any session (User Interview, Client Conversation, or both)
+- Deselect indicators they do not want evaluated in this run
+- Use All, None, or Reset buttons for bulk actions
+Only selected indicators appear in evaluation results and reports.
+
+---
+
 ## Scoring Scale
 
-- 1 Beginning: Minimal or no evidence of the skill
-- 2 Developing: Some evidence but below competency threshold
-- 3 Applying: Solid, competent performance
-- 4 Mastery: Advanced, exemplary performance
+1 - Beginning: Minimal or no evidence of the skill
+2 - Developing: Some evidence but below competency threshold
+3 - Applying: Solid, competent performance
+4 - Mastery: Advanced, exemplary performance
 
-Each score includes rationale, actionable feedback, and up to 2 verbatim transcript quotes.
-
-ETHICAL NOTE: AI-generated scores are for research and instructional support only, not final grades. All scores should be reviewed by a qualified instructor before being used in any formal assessment context.
-
----
-
-## Cost
-
-A typical run with 16 participants and 29 indicators costs approximately $1.00 using Claude Haiku 4.5. Cost breakdown is shown in the backend terminal after each run.
+Each indicator score includes:
+- Rationale citing specific rubric criteria and transcript evidence
+- Actionable improvement feedback
+- Up to 2 verbatim transcript quotes
 
 ---
 
-## Known Behaviors
+## Ethical Use
+
+AI-generated scores are intended for research and instructional support only, not as final grades.
+All scores should be reviewed by a qualified instructor before being used in any formal assessment context.
+The tool surfaces evidence and patterns to support human judgment, not replace it.
+
+---
+
+## Known Behaviours
 
 - Participants with transcripts under 50 characters are automatically skipped
-- Participants with only one session transcript will be scored for that session only
+- If a participant only completed one session, that session is scored and the other shows N/A
 - If Claude returns malformed JSON, the evaluator automatically retries once
-- Results are held in memory for the session only — no data is stored persistently
+- Results are held in memory for the duration of the session — no participant data is stored persistently
+- Claude is non-deterministic across API calls even at temperature=0
 
 ---
 
 ## Troubleshooting
 
 Rubric not parsing correctly:
-Check that your rubric uses consistent heading levels (## for domains, ### for clusters, #### for indicators containing the word Indicator).
+Ensure your rubric uses ## for domain names, ### for cluster names, and #### for indicator headings.
+Indicator headings must contain the word "Indicator".
 
 CSV columns not detected:
-Click Edit Mapping after uploading and manually assign transcript columns.
+Click Edit Mapping after uploading your CSV and manually assign each column.
 
 N/A scores for some participants:
-The transcript for that session is empty or too short. Check your CSV column mapping.
+The transcript for that session is empty or under 50 characters. Check your column mapping.
 
-Cohort PDF failing:
-Restart the backend and try again. Check the backend terminal for the error.
+Cohort PDF not downloading:
+Restart the backend and try again. Check the backend terminal for the specific error.
 
 Different results between machines:
-Claude is non-deterministic across API calls even at temperature=0. The retry logic handles most cases. Run the evaluation again if results differ significantly.
+Claude is non-deterministic across API calls even at temperature=0.
+The retry logic handles most cases. Re-running the evaluation typically resolves the discrepancy.
+
+A domain not showing in KPI cards:
+Ensure the domain uses a ## heading in the rubric. Re-upload the rubric after fixing the structure.
 
 ---
 
@@ -160,22 +187,31 @@ Claude is non-deterministic across API calls even at temperature=0. The retry lo
 
 rubricai-v2/
 ├── frontend/
-│   └── index.html          # Full SPA — all UI, parsing, rendering
+│   └── index.html          # Complete SPA — UI, rubric parsing, rendering, exports
 ├── backend/
-│   ├── main.py             # FastAPI routes, PDF/CSV export
-│   ├── evaluator.py        # Claude evaluation engine
-│   ├── rubric.md           # Last uploaded rubric (auto-saved)
+│   ├── main.py             # FastAPI routes, PDF and CSV export
+│   ├── evaluator.py        # Claude evaluation engine with retry logic
+│   ├── rubric.md           # Last uploaded rubric (auto-saved by backend)
 │   ├── requirements.txt
-│   └── .env                # ANTHROPIC_API_KEY (not committed)
-├── data/                   # Sample data files
+│   └── .env                # API key — not committed to version control
+├── data/                   # Sample rubric and CSV files
 └── README.md
 
 ---
 
-## Built By
+## Changelog — v2 (April 2026)
 
-Tanvi Kadam — Graduate Student, MPS Analytics + Applied Machine Intelligence
-Northeastern University · CPS LEARN Lab
-Supervised by Harry Son · hy.son@northeastern.edu
+- Dynamic domain system: all domains from rubric appear everywhere automatically
+- Participant modal shows all domain scores for both sessions
+- Incomplete students show which session was scored
+- AI cohort summary includes all domain scores
+- Cohort PDF and spreadsheet use fully dynamic domain averages
+- Summary & Charts tabs show domain KPIs for each session
+- Retry logic added to evaluator for malformed JSON responses
+- Ethical AI disclaimer added to evaluation flow and PDF exports
+- Session-Indicator Mapping redesigned with Domain > Cluster > Indicator hierarchy
+- README updated with full setup and troubleshooting guide
 
-RubricAI v2 · April 2026 · Confidential Research Tool
+---
+
+RubricAI v2 · CPS LEARN Lab · Northeastern University · Confidential Research Tool
