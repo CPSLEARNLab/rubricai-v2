@@ -1,228 +1,181 @@
-# RubricAI v2
+# RubricAI v2 — CPS LEARN Lab · Northeastern University
 
-**AI-powered rubric-based interview assessment platform**  
-CPS LEARN Lab · Northeastern University
-
----
-
-## Overview
-
-RubricAI evaluates student simulation transcripts against any rubric — delivering evidence-based scores, detailed rationale, actionable feedback, and cohort-level analytics at institutional scale.
-
-Built for researchers and educators who need consistent, auditable, AI-assisted assessment across multi-session simulations.
+AI-powered rubric-based transcript evaluation at institutional scale.
 
 ---
 
-## Features
+## What It Does
 
-- **Any Rubric** — Upload any markdown rubric. Clusters, indicators, and 4-level descriptors are parsed automatically. Session 1 and Session 2 indicators are detected from cluster headers
-- **Any CSV** — Upload any transcript CSV. Columns are auto-detected or mapped manually
-- **Multi-Session Support** — Evaluate any number of sessions in a single run. Each session's transcript is scored against its own indicator set
-- **Indicator Selection** — Choose exactly which indicators to evaluate per run. All selected by default
-- **Evidence-Based Scoring** — Every score includes rationale, improvement feedback, and direct transcript quotes
-- **Deterministic Results** — `temperature=0` ensures consistent scores every run for the same input
-- **Researcher Context** — Data Setup fields (course, cohort, simulation type, patterns to watch for) feed directly to the AI to improve scoring accuracy
-- **Cohort Analytics** — KPI cards, indicator bar charts, score distribution, and AI-generated cohort summary
-- **Professional Exports** — Per-participant and full-class exports in CSV and PDF
-- **AI Assistant** — Full-screen natural language interface for querying evaluation results
+RubricAI v2 evaluates student simulation transcripts against a structured rubric using Claude AI. Upload any rubric and any CSV of transcripts — the system scores every participant on every indicator with rationale, actionable feedback, and direct transcript quotes.
 
 ---
 
-## Tech Stack
+## Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | HTML, CSS, JavaScript (vanilla) |
-| Backend | Python, FastAPI |
-| AI Engine | Anthropic Claude API (claude-haiku-4-5) |
-| PDF Export | ReportLab |
-| Server | Uvicorn |
+- Frontend: Vanilla JS single-page app (frontend/index.html)
+- Backend: FastAPI + Python (backend/main.py, backend/evaluator.py)
+- AI: Claude Haiku 4.5 via Anthropic API
+- PDFs: ReportLab
 
 ---
 
-## Project Structure
+## Setup
 
-```
-rubricai-v2/
-├── backend/
-│   ├── main.py          # FastAPI server — all API endpoints
-│   ├── evaluator.py     # AI evaluation engine
-│   ├── rubric.md        # Last uploaded rubric (auto-saved)
-│   └── .env             # API keys
-├── frontend/
-│   └── index.html       # Full single-page application
-├── data/
-│   ├── dataset1_healthcare.csv
-│   ├── rubric_dataset1_healthcare.md
-│   ├── dataset2_edtech.csv
-│   └── rubric_dataset2_edtech.md
-└── README.md
-```
+### 1. Clone the repo
 
----
+git clone https://github.com/tanvisanjeev/rubricai-v2.git
+cd rubricai-v2
 
-## Setup & Installation
+### 2. Backend setup
 
-### Prerequisites
-- Python 3.9+
-- Anthropic API key
-
-### Install dependencies
-
-```bash
-cd rubricai-v2/backend
+cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-```
 
-### Add your API key
+Create backend/.env:
+ANTHROPIC_API_KEY=your-key-here
 
-Create a `.env` file in the `backend/` directory:
+Get your API key from console.anthropic.com
 
-```
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-```
+### 3. Run the backend
 
----
+cd backend && source venv/bin/activate && uvicorn main:app --reload --port 8000
 
-## Running the App
+### 4. Run the frontend
 
-**Terminal 1 — Start backend:**
-```bash
-cd rubricai-v2/backend
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
+cd frontend && python3 -m http.server 3001
 
-**Terminal 2 — Start frontend:**
-```bash
-cd rubricai-v2/frontend
-python3 -m http.server 3000
-```
+### 5. Open in browser
 
-**Open browser:**
-```
-http://localhost:3000
-```
+http://localhost:3001/index.html
 
 ---
 
 ## How to Use
 
-### Step 1 — Data Setup
-Configure course name, cohort, academic level, simulation type, participant role, number of sessions, session labels, and researcher expectations. All fields feed directly to the AI to improve scoring accuracy.
+### Step 1 - Data Setup (recommended)
+Fill in course name, cohort, simulation type, and researcher expectations. This context is sent directly to Claude to improve scoring accuracy.
 
-### Step 2 — Rubric Framework
-Upload your rubric file (.md, .txt). The tool parses all clusters and indicators automatically. Indicators are assigned to Session 1 or Session 2 based on cluster header names. Use checkboxes to select which indicators to evaluate.
+### Step 2 - Rubric Framework
+Upload your rubric file (.md or .txt). The app auto-parses all domains, clusters, and indicators.
 
-### Step 3 — Upload & Evaluate
-Upload your transcript CSV. Columns are auto-detected from file headers. Click **Edit Mapping** if your column names are non-standard. Click **Run Evaluation** — takes approximately 10 seconds per participant.
+Rubric format:
+## Domain Name
+### Cluster 1: Name
+#### Indicator 1: Name
+| Level 1 | descriptor |
+| Level 2 | descriptor |
+| Level 3 | descriptor |
+| Level 4 | descriptor |
 
-### Step 4 — Class Overview
-Review scores for every participant. Sort by any column. Filter by completion status. Click any participant to open the full evaluation detail — scores, rationale, feedback, and transcript quotes. Download individual CSV or PDF reports.
+Use the Session-Indicator Mapping table to assign indicators to sessions. All assigned to all sessions by default.
 
-### Step 5 — Summary & Charts
-View cohort-level performance — KPI cards, indicator bar charts, score distribution, and AI-generated cohort summary. Export the full cohort report as CSV or PDF.
+### Step 3 - Upload and Evaluate
+Upload your transcript CSV. Columns are auto-detected — use Edit Mapping to verify or fix assignments. Click Run Evaluation.
 
-### Step 6 — AI Assistant
-Ask natural language questions about evaluation results — who needs most support, lowest scoring indicator, cohort average, session comparisons, and more.
+Required CSV columns:
+- Participant ID (required): participant_id, student_id, id
+- Session 1 Transcript (required): transcript_user, user_transcript
+- Session 2 Transcript (optional): transcript_client, client_transcript
+- Simulation (optional): simulation, sim, course
+- Completion Status (optional): completed, status, done
+- Batch / Class (optional): batch, group, section
 
----
+### Step 4 - Review Results
+- Class Overview: all participant scores, all indicators, filter by class/batch
+- Summary & Charts: cohort KPIs, score distribution, indicator averages, AI summary
+- Click any Participant ID to see full evaluation with rationale, feedback, and transcript quotes
 
-## CSV Format
-
-The tool auto-detects columns. Standard column names:
-
-| Column | Description |
-|---|---|
-| `participant_id` | Unique participant identifier |
-| `simulation` | Simulation or course name |
-| `transcript_user` | Session 1 transcript text |
-| `transcript_client` | Session 2 transcript text |
-| `completed_user` | Completion status (Complete / Incomplete) |
-| `duration_seconds_user` | Session 1 duration in seconds (optional) |
-| `duration_seconds_client` | Session 2 duration in seconds (optional) |
-
-Non-standard column names can be mapped via the Edit Mapping interface.
-
----
-
-## Rubric Format
-
-Any markdown rubric with the following structure is supported:
-
-```markdown
-#### Session 1 — Cluster Name
-
-##### Indicator 1: Indicator Name
-
-| Level | Criterion |
-|---|---|
-| Level 1 | Beginning descriptor |
-| Level 2 | Developing descriptor |
-| Level 3 | Applying descriptor |
-| Level 4 | Mastery descriptor |
-
-#### Session 2 — Cluster Name
-
-##### Indicator 1: Indicator Name
-...
-```
-
-Cluster headers containing **Session 1** (or `user`, `interview`) are assigned to the user interview session. Cluster headers containing **Session 2+** (or `client`, `conversation`) are assigned to the client conversation session.
+### Step 5 - Export
+- Spreadsheet Export: full scores CSV from Class Overview
+- Formatted Report: per-student PDF with all indicator scores
+- Cohort Spreadsheet: cohort summary CSV from Summary & Charts
+- Cohort Report: cohort PDF with KPIs, charts, and AI summary
 
 ---
 
-## API Endpoints
+## Dynamic Domain System
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | GET | Health check |
-| `/api/detect-columns` | POST | Auto-detect CSV columns |
-| `/api/evaluate` | POST | Run AI evaluation |
-| `/api/chat` | POST | AI Assistant chat |
-| `/api/export/csv` | POST | Export class CSV |
-| `/api/export/pdf` | POST | Export class PDF |
-| `/api/export/cohort-pdf` | POST | Export cohort summary PDF |
+Domains are auto-detected from your rubric ## headings. Any rubric with any number of domains will automatically show:
+- Domain KPI cards on Class Overview
+- Domain KPI cards on Summary & Charts tabs
+- Domain scores in participant modal
+- Domain scores in student PDF reports
+- Domain averages in cohort PDF and spreadsheet exports
+- All domain scores in AI cohort summary
 
----
-
-## Test Datasets
-
-Two synthetic datasets are included in `data/` for testing:
-
-| Dataset | Domain | Students | Sessions |
-|---|---|---|---|
-| `dataset1_healthcare.csv` + `rubric_dataset1_healthcare.md` | Healthcare Operations | 5 (HC001–HC005) | 2 (User Interview + Client Conversation) |
-| `dataset2_edtech.csv` + `rubric_dataset2_edtech.md` | EdTech Product Strategy | 5 (ET001–ET005) | 2 (User Interview + Client Conversation) |
-
-Each rubric has 30 indicators — 15 per session.
+No hardcoding. Upload any rubric and everything adapts.
 
 ---
 
-## Roadmap
+## Scoring Scale
 
-| Phase | Timeline | Features |
-|---|---|---|
-| Phase 1 | Feb 2026 ✅ | AI scoring · Upload flow · Export · AI Assistant |
-| Phase 2 | Apr 2026 ✅ | Multi-session · Any rubric · Any CSV · Indicator selection · Cohort analytics · Professional exports |
-| Phase 3 | May 2026 | Human vs AI comparison · Persistent storage · Canvas LMS integration |
-| Phase 4 | Summer 2026 | Multi-institution · Subscription · REST API |
+- 1 Beginning: Minimal or no evidence of the skill
+- 2 Developing: Some evidence but below competency threshold
+- 3 Applying: Solid, competent performance
+- 4 Mastery: Advanced, exemplary performance
+
+Each score includes rationale, actionable feedback, and up to 2 verbatim transcript quotes.
+
+ETHICAL NOTE: AI-generated scores are for research and instructional support only, not final grades. All scores should be reviewed by a qualified instructor before being used in any formal assessment context.
+
+---
+
+## Cost
+
+A typical run with 16 participants and 29 indicators costs approximately $1.00 using Claude Haiku 4.5. Cost breakdown is shown in the backend terminal after each run.
+
+---
+
+## Known Behaviors
+
+- Participants with transcripts under 50 characters are automatically skipped
+- Participants with only one session transcript will be scored for that session only
+- If Claude returns malformed JSON, the evaluator automatically retries once
+- Results are held in memory for the session only — no data is stored persistently
+
+---
+
+## Troubleshooting
+
+Rubric not parsing correctly:
+Check that your rubric uses consistent heading levels (## for domains, ### for clusters, #### for indicators containing the word Indicator).
+
+CSV columns not detected:
+Click Edit Mapping after uploading and manually assign transcript columns.
+
+N/A scores for some participants:
+The transcript for that session is empty or too short. Check your CSV column mapping.
+
+Cohort PDF failing:
+Restart the backend and try again. Check the backend terminal for the error.
+
+Different results between machines:
+Claude is non-deterministic across API calls even at temperature=0. The retry logic handles most cases. Run the evaluation again if results differ significantly.
+
+---
+
+## Project Structure
+
+rubricai-v2/
+├── frontend/
+│   └── index.html          # Full SPA — all UI, parsing, rendering
+├── backend/
+│   ├── main.py             # FastAPI routes, PDF/CSV export
+│   ├── evaluator.py        # Claude evaluation engine
+│   ├── rubric.md           # Last uploaded rubric (auto-saved)
+│   ├── requirements.txt
+│   └── .env                # ANTHROPIC_API_KEY (not committed)
+├── data/                   # Sample data files
+└── README.md
 
 ---
 
 ## Built By
 
-**Tanvi Kadam**  
-AI Engineer · MS Applied Machine Intelligence · Northeastern University
+Tanvi Kadam — Graduate Student, MPS Analytics + Applied Machine Intelligence
+Northeastern University · CPS LEARN Lab
+Supervised by Harry Son · hy.son@northeastern.edu
 
-**CPS LEARN Lab**  
-College of Professional Studies · Northeastern University
-
----
-
-## License
-
-Research use only. Not for commercial distribution without permission.  
-© 2026 CPS LEARN Lab · Northeastern University
+RubricAI v2 · April 2026 · Confidential Research Tool
