@@ -1580,27 +1580,61 @@ function renderSessionMapping(){
   if(!parsedRubric.length){el.style.display='none';return;}
   el.style.display='block';
   const sessDefs=getSessionDefs();
-  const rows=parsedRubric.flatMap(c=>c.inds.map(ind=>({
-    id:ind.id,name:ind.name,cluster:c.cluster,
-    assigned:indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key))
-  })));
+  const domainMap=getDomainMap();
 
-  // Group rows by cluster
-  const clusterMap={};
+  // Build domain → clusters → indicators structure
+  const domainList=[];
+  const seenDomains=new Set();
   parsedRubric.forEach(c=>{
-    clusterMap[c.cluster]=c.inds.map(ind=>({
-      id:ind.id,name:ind.name,
-      assigned:indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key))
-    }));
+    const d=c.domain||'General';
+    if(!seenDomains.has(d)){seenDomains.add(d);domainList.push(d);}
   });
 
-  const colW=Math.floor(60/sessDefs.length);
+  const cbW=Math.floor(52/sessDefs.length);
+
+  let tbody='';
+  domainList.forEach((domain,di)=>{
+    const dClusters=parsedRubric.filter(c=>(c.domain||'General')===domain);
+    const dColor=domainColor(domain,di);
+    // Domain header row
+    tbody+=`<tr>
+      <td colspan="${2+sessDefs.length}" style="background:var(--surface2);padding:7px 12px;border-bottom:2px solid ${dColor};">
+        <span style="font-size:11px;font-weight:800;color:${dColor};text-transform:uppercase;letter-spacing:0.8px;">${domain}</span>
+        <span style="font-size:10px;color:var(--subtle);margin-left:8px;">${dClusters.reduce((a,c)=>a+c.inds.length,0)} indicators</span>
+      </td>
+    </tr>`;
+    dClusters.forEach(c=>{
+      // Cluster sub-header row
+      tbody+=`<tr>
+        <td colspan="${2+sessDefs.length}" style="background:var(--surface);padding:5px 12px 5px 20px;border-bottom:1px solid var(--border);">
+          <span style="font-size:10.5px;font-weight:600;color:var(--muted);">${c.cluster}</span>
+          <span style="font-size:9.5px;color:var(--subtle);margin-left:6px;">${c.inds.length} indicator${c.inds.length!==1?'s':''}</span>
+        </td>
+      </tr>`;
+      c.inds.forEach(ind=>{
+        const assigned=indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key));
+        tbody+=`<tr>
+          <td style="padding-left:28px;"><span class="rind-id" style="font-size:10px;">${ind.id}</span></td>
+          <td style="color:var(--text);font-size:12px;padding:6px 8px;">${ind.name}</td>
+          ${sessDefs.map(sd=>{
+            const checked=assigned.has(sd.key);
+            return`<td style="text-align:center;width:${cbW}%;">
+              <label class="smap-cb-pill${checked?' active':''}" style="justify-content:center;width:100%;">
+                <input type="checkbox" style="width:13px;height:13px;" ${checked?'checked':''}
+                  onchange="updateIndSessionCb('${ind.id}','${sd.key}',this.checked);this.closest('label').classList.toggle('active',this.checked)">
+              </label>
+            </td>`;
+          }).join('')}
+        </tr>`;
+      });
+    });
+  });
 
   el.innerHTML=`<div class="card" style="margin-bottom:0;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
       <div>
         <div class="card-title">Session–Indicator Mapping</div>
-        <div class="card-sub" style="margin-bottom:0;">Check which sessions each indicator should be evaluated in. All selected by default.</div>
+        <div class="card-sub" style="margin-bottom:0;">Choose which sessions each indicator is evaluated in. All selected by default.</div>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-ghost btn-sm" onclick="setAllSessionMapping(true)">✓ All</button>
@@ -1612,41 +1646,12 @@ function renderSessionMapping(){
       <table class="smap-table" style="width:100%;">
         <thead>
           <tr>
-            <th style="width:80px;">ID</th>
-            <th style="width:40%;">Indicator</th>
-            <th style="width:15%;">Cluster</th>
-            ${sessDefs.map(sd=>`<th style="width:${colW}%;text-align:center;color:var(--accent);">${sd.label}</th>`).join('')}
+            <th style="width:70px;">ID</th>
+            <th>Indicator</th>
+            ${sessDefs.map(sd=>`<th style="width:${cbW}%;text-align:center;color:var(--accent);white-space:nowrap;">${sd.label}</th>`).join('')}
           </tr>
         </thead>
-        <tbody>
-          ${parsedRubric.map(c=>`
-            <tr>
-              <td colspan="${3+sessDefs.length}" style="background:var(--surface2);padding:8px 12px;border-bottom:1px solid var(--border);">
-                <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;">
-                  ${c.cluster}
-                </span>
-                <span style="font-size:10px;color:var(--subtle);margin-left:8px;">${c.inds.length} indicator${c.inds.length!==1?'s':''}</span>
-              </td>
-            </tr>
-            ${c.inds.map(ind=>{
-              const assigned=indSessionMap[ind.id]||new Set(sessDefs.map(s=>s.key));
-              return`<tr>
-                <td><span class="rind-id">${ind.id}</span></td>
-                <td style="color:var(--text);font-weight:500;font-size:12px;">${ind.name}</td>
-                <td style="color:var(--muted);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.cluster}">${c.cluster}</td>
-                ${sessDefs.map(sd=>{
-                  const checked=assigned.has(sd.key);
-                  return`<td style="text-align:center;">
-                    <label class="smap-cb-pill${checked?' active':''}" style="justify-content:center;width:100%;">
-                      <input type="checkbox" ${checked?'checked':''} 
-                        onchange="updateIndSessionCb('${ind.id}','${sd.key}',this.checked);this.closest('label').classList.toggle('active',this.checked)">
-                    </label>
-                  </td>`;
-                }).join('')}
-              </tr>`;
-            }).join('')}
-          `).join('')}
-        </tbody>
+        <tbody>${tbody}</tbody>
       </table>
     </div>
   </div>`;
@@ -2103,12 +2108,13 @@ function openModal(pid){
   document.getElementById('m-sim').textContent=s.simulation.replace(/_/g,' ');
   const hasUser=s.comm_user!=null||Object.keys(s).some(k=>k.includes('_user_score'));
   const hasClient=s.comm_client!=null||Object.keys(s).some(k=>k.includes('_client_score'));
-  document.getElementById('m-comp').innerHTML=s.completed===1
-    ?`<span class="comp-y">Both sessions completed</span>`
-    :hasUser&&hasClient?`<span style="color:var(--amber);font-size:12px;">Partially completed — scores available for both sessions</span>`
-    :hasUser?`<span style="color:var(--amber);font-size:12px;">Incomplete — ${setupData.sess1||'User Interview'} scored only</span>`
-    :hasClient?`<span style="color:var(--amber);font-size:12px;">Incomplete — ${setupData.sess2||'Client Conversation'} scored only</span>`
-    :`<span class="comp-n">Session incomplete — no transcripts found</span>`;
+  document.getElementById('m-comp').innerHTML=hasUser&&hasClient
+    ?`<span class="comp-y">Both sessions scored</span>`
+    :hasUser&&s.completed===1?`<span style="color:var(--amber);font-size:12px;">Simulation complete — ${setupData.sess2||'Client Conversation'} evaluation failed or missing</span>`
+    :hasClient&&s.completed===1?`<span style="color:var(--amber);font-size:12px;">Simulation complete — ${setupData.sess1||'User Interview'} evaluation failed or missing</span>`
+    :hasUser?`<span style="color:var(--amber);font-size:12px;">${setupData.sess1||'User Interview'} scored only — no client transcript found</span>`
+    :hasClient?`<span style="color:var(--amber);font-size:12px;">${setupData.sess2||'Client Conversation'} scored only — no user transcript found</span>`
+    :`<span class="comp-n">No scores — transcripts missing or evaluation failed</span>`;
   const _dm=getDomainMap();
   document.getElementById('m-stats').innerHTML=Object.entries(_dm).flatMap(([domain,clusterIdxs],i)=>{
     const uVals=clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null);

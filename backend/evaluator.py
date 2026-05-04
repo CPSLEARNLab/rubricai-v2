@@ -291,41 +291,35 @@ Return ONLY valid JSON:
   "summary": "overall performance narrative"
 }}"""
 
-    try:
-        text = call_claude(prompt)
-        if not text:
-            return None
+    def strip_markdown(t):
+        if "```json" in t:
+            return t.split("```json")[1].split("```")[0].strip()
+        if "```" in t:
+            return t.split("```")[1].split("```")[0].strip()
+        return t
 
-        # Fallback markdown strip
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-
-        parsed = json.loads(text)
-        score_count = len(parsed.get("scores", {}))
-        print(f"    ✓ {score_count}/{len(selected_indicators)} scored — {participant_id} [{session_label}]")
-        return parsed
-
-    except json.JSONDecodeError as e:
-        print(f"    ✗ JSON error — {participant_id} [{session_label}]: {e} — retrying once")
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
         try:
             text = call_claude(prompt)
             if not text:
-                return None
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
+                print(f"    ✗ No response — {participant_id} [{session_label}] attempt {attempt}/{max_attempts}")
+                continue
+            text = strip_markdown(text)
             parsed = json.loads(text)
-            print(f"    ✓ Retry succeeded — {participant_id} [{session_label}]")
+            score_count = len(parsed.get("scores", {}))
+            if attempt > 1:
+                print(f"    ✓ Succeeded on attempt {attempt} — {participant_id} [{session_label}]")
+            else:
+                print(f"    ✓ {score_count}/{len(selected_indicators)} scored — {participant_id} [{session_label}]")
             return parsed
-        except Exception as retry_e:
-            print(f"    ✗ Retry failed — {participant_id} [{session_label}]: {retry_e}")
-            return None
-    except Exception as e:
-        print(f"    ✗ Error — {participant_id} [{session_label}]: {e}")
-        return None
+        except json.JSONDecodeError as e:
+            print(f"    ✗ JSON error attempt {attempt}/{max_attempts} — {participant_id} [{session_label}]: {e}")
+        except Exception as e:
+            print(f"    ✗ Error attempt {attempt}/{max_attempts} — {participant_id} [{session_label}]: {e}")
+
+    print(f"    ✗ All {max_attempts} attempts failed — {participant_id} [{session_label}]")
+    return None
 
 
 # ── FLEXIBLE COLUMN EXTRACTION ────────────────────────────────
