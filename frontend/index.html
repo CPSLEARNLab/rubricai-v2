@@ -2065,13 +2065,21 @@ function renderTbl(data){
     ${hasBatch?'<th>Batch</th>':''}
     <th>Completed</th>
     ${activeInds.map(i=>`<th title="${rubricDescMap[i]||i}" onclick="sortTable('${i}${sfx}_score')">${shortName(i)}</th>`).join('')}
-    <th onclick="sortTable('${ck}')">Comm</th>
-    <th onclick="sortTable('${tk}')">CT</th>
+    ${Object.entries(getDomainMap()).map(([domain,clusterIdxs],i)=>{
+      const key=clusterIdxs.map(ci=>`cluster_${ci}${sfx}_avg`).join('_');
+      return`<th onclick="sortTable('${key}')" style="color:${domainColor(domain,i)}">${domain.split(' ')[0]}</th>`;
+    }).join('')}
     <th>Status</th>
     <th>Download</th>
   </tr>`;
 
   document.getElementById('tbl-body').innerHTML=sorted.map(s=>{
+    const _dm=getDomainMap();
+    const domainAvgs=Object.entries(_dm).map(([domain,clusterIdxs],i)=>{
+      const vals=clusterIdxs.map(ci=>s[`cluster_${ci}${sfx}_avg`]).filter(v=>v!=null);
+      const avg=vals.length?parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)):null;
+      return{domain,avg,color:domainColor(domain,i)};
+    });
     const cm=s[ck],ct=s[tk];
     return`<tr>
       <td class="id-cell" onclick="openModal('${s.participant_id}')">${s.participant_id}</td>
@@ -2079,8 +2087,7 @@ function renderTbl(data){
       ${hasBatch?`<td><span class="batch-pill">${s.batch||'—'}</span></td>`:''}
       <td class="${s.completed?'comp-y':'comp-n'}">${s.completed?'Yes':'No'}</td>
       ${activeInds.map(k=>`<td style="text-align:center" title="${rubricDescMap[k]||k}">${bdg(s[k+sfx+'_score'])}</td>`).join('')}
-      <td class="sc" style="color:${scColor(cm)}">${cm??'—'}</td>
-      <td class="sc" style="color:${scColor(ct)}">${ct??'—'}</td>
+      ${domainAvgs.map(d=>`<td class="sc" style="color:${d.avg?d.color:'var(--subtle)'}">${d.avg??'—'}</td>`).join('')}
       <td>${s.completed===0?`<span class="st-inc">Incomplete</span>`:`<span class="st-ok">Clear</span>`}</td>
       <td><div style="display:flex;gap:4px;">
         <button class="btn btn-ghost btn-sm" onclick="downloadStudentCSV('${s.participant_id}')">CSV</button>
