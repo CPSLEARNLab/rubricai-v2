@@ -272,23 +272,23 @@ STUDENT TRANSCRIPT:
 
 SCORING RULES:
 - Score: 1=Beginning, 2=Developing, 3=Applying, 4=Mastery
-- rationale: 2-3 sentences citing specific rubric criteria AND specific transcript evidence
-- feedback: 1-2 actionable sentences for reaching the next level
-- quotes: up to 2 verbatim quotes from transcript ([] if none found)
-- If transcript lacks sufficient evidence for an indicator, score 1 and explain why in rationale
-- summary: 2-3 sentence narrative of overall performance patterns
+- rationale: 1-2 concise sentences citing rubric criteria and transcript evidence
+- feedback: 1 actionable sentence for reaching the next level
+- quotes: 1 short verbatim quote ([] if none found)
+- If transcript lacks sufficient evidence, score 1 and state why briefly
+- summary: 1-2 sentence overview of overall performance
 
 Return ONLY valid JSON:
 {{
   "scores": {{
     "INDICATOR_ID": {{
       "score": 2,
-      "rationale": "explanation with rubric criteria and transcript evidence",
-      "feedback": "actionable next step",
-      "quotes": ["verbatim quote"]
+      "rationale": "rubric criteria + transcript evidence",
+      "feedback": "one actionable step",
+      "quotes": ["short verbatim quote"]
     }}
   }},
-  "summary": "overall performance narrative"
+  "summary": "brief overall narrative"
 }}"""
 
     def strip_markdown(t):
