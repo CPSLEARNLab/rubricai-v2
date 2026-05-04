@@ -1373,7 +1373,9 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 <div class="toast" id="toast"></div>
 
 <script>
-const API='http://localhost:8000';
+const API=window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'
+  ?'http://localhost:8000'
+  :'https://rubricai-backend.onrender.com';
 const BC=['b0','b1','b2','b3','b4'];
 const BS=['N/A','Beg','Dev','App','Mas'];
 
