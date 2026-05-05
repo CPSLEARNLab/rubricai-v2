@@ -175,10 +175,11 @@ def build_context(setup_data=None):
 # ── SERVER-SIDE SCORE CALCULATION ─────────────────────────────
 def calculate_scores(scores_dict, indicator_ids):
     """
-    Calculate aggregate scores from returned scores.
-    comm = average of ALL scored indicators (overall performance).
-    ct   = average of the SECOND HALF of clusters (heuristic for critical thinking).
-    Works for any number of clusters and indicators — no hardcoding.
+    Calculate aggregate scores using the two-step method Harry specified:
+      1. Average indicator scores within each cluster → cluster average
+      2. Average cluster averages within the domain → domain average
+    comm = average of ALL cluster averages (all clusters).
+    ct   = average of cluster averages for the SECOND HALF of clusters.
     """
     if not scores_dict or not indicator_ids:
         return 0.0, 0.0
@@ -187,26 +188,27 @@ def calculate_scores(scores_dict, indicator_ids):
         m = re.match(r'C(\d+)_', ind_id)
         return int(m.group(1)) if m else 0
 
-    # Find all unique cluster numbers present in the selected indicators
-    cluster_nums = sorted(set(cluster_num(i) for i in indicator_ids))
-    total_clusters = len(cluster_nums)
+    # Step 1: compute per-cluster averages
+    cluster_buckets = {}
+    for ind in indicator_ids:
+        c = cluster_num(ind)
+        if ind in scores_dict and isinstance(scores_dict[ind].get("score"), (int, float)):
+            cluster_buckets.setdefault(c, []).append(scores_dict[ind]["score"])
 
-    # CT = indicators from the upper half of clusters
-    # e.g. 4 clusters → CT = clusters 3+4, comm = all
+    cluster_avgs = {c: sum(v) / len(v) for c, v in cluster_buckets.items() if v}
+    if not cluster_avgs:
+        return 0.0, 0.0
+
+    # Step 2: average cluster averages → domain averages
+    cluster_nums = sorted(cluster_avgs.keys())
+    total_clusters = len(cluster_nums)
     ct_threshold = cluster_nums[total_clusters // 2] if total_clusters >= 2 else 999
 
-    all_scores = [
-        scores_dict[i]["score"] for i in indicator_ids
-        if i in scores_dict and isinstance(scores_dict[i].get("score"), (int, float))
-    ]
-    ct_scores = [
-        scores_dict[i]["score"] for i in indicator_ids
-        if i in scores_dict and isinstance(scores_dict[i].get("score"), (int, float))
-        and cluster_num(i) >= ct_threshold
-    ]
+    all_avgs = list(cluster_avgs.values())
+    ct_avgs = [cluster_avgs[c] for c in cluster_nums if c >= ct_threshold]
 
-    comm = round(sum(all_scores) / len(all_scores), 2) if all_scores else 0.0
-    ct = round(sum(ct_scores) / len(ct_scores), 2) if ct_scores else 0.0
+    comm = round(sum(all_avgs) / len(all_avgs), 2) if all_avgs else 0.0
+    ct = round(sum(ct_avgs) / len(ct_avgs), 2) if ct_avgs else 0.0
     return comm, ct
 
 
