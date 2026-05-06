@@ -1209,13 +1209,13 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
       </div>
       <div class="card">
         <div class="upload-zone" id="drop-zone">
-          <input type="file" accept=".csv,.txt" onchange="handleFile(this)"/>
+          <input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="handleFile(this)"/>
           <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
-          <h3>Upload Transcript CSV</h3>
-          <p>Drag and drop or click to browse — columns auto-detected</p>
+          <h3>Upload Transcript File</h3>
+          <p>CSV · Excel (.xlsx / .xls) — columns auto-detected</p>
           <div class="file-tag" id="file-name"></div>
         </div>
-        <div id="col-banner" style="display:none;margin-top:12px;background:var(--accent-glow);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <div id="col-banner" style="display:none;margin-top:12px;background:var(--accent-glow);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:11px 14px;align-items:center;justify-content:space-between;">
           <div>
             <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:2px;" id="col-banner-title">Columns detected</div>
             <div style="font-size:11px;color:var(--muted);" id="col-banner-sub"></div>
@@ -1707,20 +1707,6 @@ function updateIndSessionCb(id,sessKey,checked){
   else indSessionMap[id].delete(sessKey);
   rebuildSessionLists();
 }
-function setAllSessionMapping(val){
-  const sessDefs=getSessionDefs();
-  parsedRubric.forEach(c=>c.inds.forEach(ind=>{
-    if(!indSessionMap[ind.id]) indSessionMap[ind.id]=new Set();
-    sessDefs.forEach(sd=>{
-      if(val) indSessionMap[ind.id].add(sd.key);
-      else indSessionMap[ind.id].delete(sd.key);
-    });
-  }));
-  rebuildSessionLists();
-  renderSessionMapping();
-  toast(val?'All indicators selected for all sessions.':'All indicators deselected.','ok');
-}
-
 function resetSessionMapping(){
   const sessDefs=getSessionDefs();
   indSessionMap={};
@@ -1762,12 +1748,48 @@ async function handleFile(input){
   document.getElementById('file-name').textContent='Selected: '+file.name;
   document.getElementById('run-btn').disabled=true;
   columnMapping={};detectedColumns=[];
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    const text=e.target.result;
-    const lines=text.split('\n').filter(l=>l.trim());
-    if(lines.length>0){
-      const rawHeaders=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\uFEFF/,''));
+  const banner=document.getElementById('col-banner');
+  if(banner) banner.style.display='none';
+
+  // Try backend detect-columns (handles CSV, XLSX, XLS)
+  let detected=false;
+  try{
+    const fd=new FormData();fd.append('file',file);
+    const r=await fetch(`${API}/api/detect-columns`,{method:'POST',body:fd});
+    if(r.ok){
+      const d=await r.json();
+      if(d.status==='success'){
+        detectedColumns=d.columns||[];
+        columnMapping=d.suggested_mapping||{};
+        csvSample=d.sample||{};
+        const rowCount=d.total_rows||0;
+        const mappedCount=Object.keys(columnMapping).length;
+        if(banner) banner.style.display='flex';
+        document.getElementById('col-banner-title').textContent=`${detectedColumns.length} columns detected · ${rowCount} rows`;
+        document.getElementById('col-banner-sub').textContent=`${mappedCount} fields auto-mapped. Click "Edit Mapping" to review.`;
+        document.getElementById('run-btn').disabled=false;
+        updateStatusCards();
+        toast(`${rowCount} rows loaded. ${mappedCount} columns mapped.`,'ok');
+        detected=true;
+      }
+    }
+  }catch{}
+
+  if(!detected){
+    // Client-side CSV fallback for when backend is unreachable
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    if(ext==='xlsx'||ext==='xls'){
+      toast('Could not reach backend to detect Excel columns. Use "Edit Mapping" to map manually.','err');
+      document.getElementById('run-btn').disabled=false;
+      updateStatusCards();
+      return;
+    }
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const text=e.target.result;
+      const lines=text.split('\n').filter(l=>l.trim());
+      if(!lines.length){toast('File appears empty.','err');return;}
+      const rawHeaders=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').replace(/^﻿/,''));
       detectedColumns=rawHeaders;
       const rowCount=lines.length-1;
       rawHeaders.forEach(col=>{
@@ -1781,25 +1803,18 @@ async function handleFile(input){
       });
       function splitCsvRow(row){const res=[];let q=false,cur='';for(let i=0;i<row.length;i++){if(row[i]==='"'){q=!q;}else if(row[i]===','&&!q){res.push(cur);cur='';}else{cur+=row[i];}}res.push(cur);return res;}
       const sampleVals=lines[1]?splitCsvRow(lines[1]):[];
-      rawHeaders.forEach((col,i)=>{
-        if((sampleVals[i]||'').length>200){
-          if(!columnMapping.transcript_user) columnMapping.transcript_user=col;
-          else if(!columnMapping.transcript_client) columnMapping.transcript_client=col;
-        }
-      });
-      csvSample={};
-      rawHeaders.forEach((h,i)=>csvSample[h]=(sampleVals[i]||'').substring(0,80));
-      const banner=document.getElementById('col-banner');
+      rawHeaders.forEach((col,i)=>{if((sampleVals[i]||'').length>200){if(!columnMapping.transcript_user) columnMapping.transcript_user=col;else if(!columnMapping.transcript_client) columnMapping.transcript_client=col;}});
+      csvSample={};rawHeaders.forEach((h,i)=>csvSample[h]=(sampleVals[i]||'').substring(0,80));
+      const mappedCount=Object.keys(columnMapping).length;
       if(banner) banner.style.display='flex';
       document.getElementById('col-banner-title').textContent=`${rawHeaders.length} columns detected · ${rowCount} rows`;
-      const mappedCount=Object.keys(columnMapping).length;
       document.getElementById('col-banner-sub').textContent=`${mappedCount} fields auto-mapped. Click "Edit Mapping" to review.`;
       document.getElementById('run-btn').disabled=false;
       updateStatusCards();
       toast(`${rowCount} rows loaded. ${mappedCount} columns mapped.`,'ok');
-    }
-  };
-  reader.readAsText(file);
+    };
+    reader.readAsText(file);
+  }
 }
 
 function updateSessionLabels(){
