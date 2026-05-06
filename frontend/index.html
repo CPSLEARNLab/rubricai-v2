@@ -1405,10 +1405,9 @@ function parseRubricMarkdown(text){
   const clusters=[];
   let curCluster=null,curInd=null,clusterIdx=0,indIdx=0;
 
-  // Auto-detect heading level used for indicators in this rubric
   let indHeadLevel=5;
-let currentDomain='General';
-const domainPrefix='## ';
+  let currentDomain='General';
+  const domainPrefix='## ';
   for(const line of lines){
     const m=line.match(/^(#{2,6})\s+.*indicator/i);
     if(m){indHeadLevel=m[1].length;break;}
@@ -1466,7 +1465,41 @@ const domainPrefix='## ';
     }
   }
   saveCluster();
-  return clusters.filter(c=>c.inds.length>0);
+  const headingResult=clusters.filter(c=>c.inds.length>0);
+  if(headingResult.length>0) return headingResult;
+
+  // Fallback: no heading-based indicators found — treat bullet points under ### clusters as indicators
+  const bClusters=[];
+  let bCluster=null,bClusterIdx=0,bIndIdx=0,bDomain='General';
+  const bulletRe=/^[\*\-]\s+(.+)/;
+  const clusterRe=/^###\s+(.+)/;
+  const domainRe=/^##\s+(.+)/;
+  const skipRe=/^\*\*(References|Indicators|Research|Note|Calibration)/i;
+  for(const line of lines){
+    const trimmed=line.trim();
+    if(!trimmed) continue;
+    const dm=trimmed.match(domainRe);
+    if(dm&&!trimmed.startsWith('####')){bDomain=dm[1].replace(/\*\*/g,'').trim();continue;}
+    const cm=trimmed.match(clusterRe);
+    if(cm){
+      if(bCluster&&bCluster.inds.length) bClusters.push(bCluster);
+      bClusterIdx++;bIndIdx=0;
+      bCluster={cluster:cm[1].replace(/\*\*/g,'').trim(),session:guessSession(trimmed),inds:[],clusterIdx:bClusterIdx,domain:bDomain};
+      continue;
+    }
+    if(!bCluster) continue;
+    if(skipRe.test(trimmed)) continue;
+    const bm=trimmed.match(bulletRe);
+    if(bm){
+      const name=bm[1].replace(/\*\*/g,'').trim();
+      if(name.length>3&&!/^(References|Source|Note)/i.test(name)){
+        bIndIdx++;
+        bCluster.inds.push({id:`C${bClusterIdx}_I${bIndIdx}`,name,ls:['No descriptor provided.','No descriptor provided.','No descriptor provided.','No descriptor provided.']});
+      }
+    }
+  }
+  if(bCluster&&bCluster.inds.length) bClusters.push(bCluster);
+  return bClusters.filter(c=>c.inds.length>0);
 }
 function guessSession(t){
   const s=t.toLowerCase();
