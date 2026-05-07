@@ -127,7 +127,8 @@ async def evaluate(
     selected_u_indicators: Optional[str] = Form(None),
     selected_c_indicators: Optional[str] = Form(None),
     rubric_desc_map: Optional[str] = Form(None),
-    setup_data: Optional[str] = Form(None)
+    setup_data: Optional[str] = Form(None),
+    cluster_domain_map: Optional[str] = Form(None)
 ):
     try:
         # Load rubric
@@ -161,6 +162,7 @@ async def evaluate(
 
         col_map = parse_json_field(column_mapping)
         setup = parse_json_field(setup_data)
+        cdm = parse_json_field(cluster_domain_map) or {}
 
         # Read file (CSV or Excel)
         contents = await file.read()
@@ -190,7 +192,7 @@ async def evaluate(
         tasks = [
             evaluate_participant_async(
                 row, rubric_text, sel_u, sel_c,
-                setup, desc_map, semaphore
+                setup, desc_map, semaphore, cdm
             )
             for row in rows
         ]
@@ -220,7 +222,8 @@ async def evaluate_stream(
     selected_u_indicators: Optional[str] = Form(None),
     selected_c_indicators: Optional[str] = Form(None),
     rubric_desc_map: Optional[str] = Form(None),
-    setup_data: Optional[str] = Form(None)
+    setup_data: Optional[str] = Form(None),
+    cluster_domain_map: Optional[str] = Form(None)
 ):
     # ── Parse inputs (same as /api/evaluate) ──────────────────
     try:
@@ -251,6 +254,7 @@ async def evaluate_stream(
 
         col_map = parse_json_field(column_mapping)
         setup   = parse_json_field(setup_data)
+        cdm     = parse_json_field(cluster_domain_map) or {}
 
         contents = await file.read()
         rows = parse_upload_to_rows(contents, file.filename)
@@ -284,7 +288,7 @@ async def evaluate_stream(
         async def wrapped(row):
             try:
                 result = await evaluate_participant_async(
-                    row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore
+                    row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore, cdm
                 )
             except Exception as e:
                 import traceback; traceback.print_exc()
@@ -349,8 +353,10 @@ async def export_csv(request: dict):
     output = io.StringIO()
     score_keys = sorted(set(k for s in students for k in s.keys() if k.endswith("_score")))
     cluster_keys = sorted(set(k for s in students for k in s.keys() if k.startswith("cluster_") and k.endswith("_avg")))
-    fieldnames = ["participant_id", "simulation", "batch", "completed",
-                  "comm_user", "ct_user", "comm_client", "ct_client"] + cluster_keys + score_keys
+    dom_user_keys = sorted(set(k for s in students for k in s.keys() if k.startswith("dom_") and k.endswith("_user")))
+    dom_client_keys = sorted(set(k for s in students for k in s.keys() if k.startswith("dom_") and k.endswith("_client")))
+    domain_keys = dom_user_keys + dom_client_keys
+    fieldnames = ["participant_id", "simulation", "batch", "completed"] + domain_keys + cluster_keys + score_keys
 
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()

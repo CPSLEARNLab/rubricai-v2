@@ -1927,6 +1927,9 @@ async function runEval(){
   fd.append('selected_c_indicators',JSON.stringify(C_IND.filter(i=>selectedInds.has(i))));
   fd.append('rubric_desc_map',JSON.stringify(rubricDescMap));
   fd.append('setup_data',JSON.stringify(setupData));
+  const clusterDomainMap={};
+  parsedRubric.forEach(c=>{clusterDomainMap[c.clusterIdx]=c.domain;});
+  fd.append('cluster_domain_map',JSON.stringify(clusterDomainMap));
   try{
     const r=await fetch(`${API}/api/evaluate-stream`,{method:'POST',body:fd});
     if(!r.ok) throw new Error('Server error: '+r.status);

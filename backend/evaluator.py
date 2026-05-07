@@ -426,9 +426,22 @@ def evaluate_participant(
 
 
 # ── ASYNC WRAPPER — parallel sessions per participant ─────────
+def _domain_avgs_from_clusters(cluster_avgs, cluster_domain_map):
+    """Given {cluster_num: avg} and {"1": "Domain Name", ...}, return {"domain_name": avg}."""
+    buckets = {}
+    for c, avg in cluster_avgs.items():
+        dom = cluster_domain_map.get(str(c), cluster_domain_map.get(c, "General"))
+        buckets.setdefault(dom, []).append(avg)
+    result = {}
+    for dom, avgs in buckets.items():
+        slug = re.sub(r'[^a-z0-9]+', '_', dom.lower()).strip('_')
+        result[slug] = round(sum(avgs) / len(avgs), 2)
+    return result
+
+
 async def evaluate_participant_async(
     row, rubric_text, sel_u, sel_c,
-    setup_data, rubric_desc_map, semaphore
+    setup_data, rubric_desc_map, semaphore, cluster_domain_map=None
 ):
     async with semaphore:
         loop = asyncio.get_event_loop()
@@ -513,15 +526,20 @@ async def evaluate_participant_async(
             result["_detail"]["user"] = user_result
             for ind, data in user_result.get("scores", {}).items():
                 result[f"{ind}_user_score"] = data.get("score", 0)
-            # Per-cluster averages (handles any number of domains dynamically)
             cluster_scores = {}
             for ind, data in user_result.get("scores", {}).items():
                 m = re.match(r'C(\d+)_', ind)
                 if m:
                     c = int(m.group(1))
                     cluster_scores.setdefault(c, []).append(data.get("score", 0))
+            cluster_avgs = {}
             for c, vals in cluster_scores.items():
-                result[f"cluster_{c}_user_avg"] = round(sum(vals)/len(vals), 2)
+                avg = round(sum(vals)/len(vals), 2)
+                result[f"cluster_{c}_user_avg"] = avg
+                cluster_avgs[c] = avg
+            if cluster_domain_map:
+                for slug, avg in _domain_avgs_from_clusters(cluster_avgs, cluster_domain_map).items():
+                    result[f"dom_{slug}_user"] = avg
 
         if client_result:
             comm, ct = calculate_scores(client_result.get("scores", {}), sel_c)
@@ -530,14 +548,19 @@ async def evaluate_participant_async(
             result["_detail"]["client"] = client_result
             for ind, data in client_result.get("scores", {}).items():
                 result[f"{ind}_client_score"] = data.get("score", 0)
-            # Per-cluster averages (handles any number of domains dynamically)
             cluster_scores = {}
             for ind, data in client_result.get("scores", {}).items():
                 m = re.match(r'C(\d+)_', ind)
                 if m:
                     c = int(m.group(1))
                     cluster_scores.setdefault(c, []).append(data.get("score", 0))
+            cluster_avgs = {}
             for c, vals in cluster_scores.items():
-                result[f"cluster_{c}_client_avg"] = round(sum(vals)/len(vals), 2)
+                avg = round(sum(vals)/len(vals), 2)
+                result[f"cluster_{c}_client_avg"] = avg
+                cluster_avgs[c] = avg
+            if cluster_domain_map:
+                for slug, avg in _domain_avgs_from_clusters(cluster_avgs, cluster_domain_map).items():
+                    result[f"dom_{slug}_client"] = avg
 
         return result
