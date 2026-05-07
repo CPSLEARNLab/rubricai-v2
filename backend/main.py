@@ -88,8 +88,12 @@ async def detect_columns(file: UploadFile = File(...)):
                 if "completed_user" not in mapping:
                     mapping["completed_user"] = col
             elif any(k in c for k in ["transcript_user", "user_transcript", "interview", "script_a", "transcript_a"]):
-                mapping["transcript_user"] = col
-            elif any(k in c for k in ["transcript_client", "client_transcript", "client", "script_b", "transcript_b"]):
+                if "transcript_user" not in mapping:
+                    mapping["transcript_user"] = col
+            elif any(k in c for k in ["transcript_client", "client_transcript", "script_b", "transcript_b"]):
+                if "transcript_client" not in mapping:
+                    mapping["transcript_client"] = col
+            elif "client" in c and "transcript_client" not in mapping:
                 mapping["transcript_client"] = col
             elif any(k in c for k in ["duration_user", "duration_seconds_user"]):
                 mapping["duration_seconds_user"] = col
