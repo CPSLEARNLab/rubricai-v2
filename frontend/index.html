@@ -2360,10 +2360,15 @@ function downloadStudentCSV(pid){
   const s=results.find(x=>x.participant_id===pid);if(!s)return;
   let csv='RUBRICAI v2 — EVALUATION REPORT\n';
   csv+=`Participant ID,${s.participant_id}\nSimulation,${s.simulation}\nStatus,${s.completed?'Completed':'Incomplete'}\n`;
-  csv+=`${setupData.sess1||'User Interview'} Comm,${s.comm_user??'N/A'}\n`;
-  csv+=`${setupData.sess1||'User Interview'} CT,${s.ct_user??'N/A'}\n`;
-  csv+=`${setupData.sess2||'Client Conversation'} Comm,${s.comm_client??'N/A'}\n`;
-  csv+=`${setupData.sess2||'Client Conversation'} CT,${s.ct_client??'N/A'}\n`;
+  const _dm=getDomainMap();
+  Object.entries(_dm).forEach(([domain,clusterIdxs])=>{
+    const uVals=clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null);
+    const cVals=clusterIdxs.map(ci=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null);
+    const uAvg=uVals.length?parseFloat((uVals.reduce((a,b)=>a+b,0)/uVals.length).toFixed(2)):null;
+    const cAvg=cVals.length?parseFloat((cVals.reduce((a,b)=>a+b,0)/cVals.length).toFixed(2)):null;
+    if(uAvg!==null) csv+=`${domain} (${setupData.sess1||'User Interview'}),${uAvg}\n`;
+    if(cAvg!==null) csv+=`${domain} (${setupData.sess2||'Client Conversation'}),${cAvg}\n`;
+  });
   csv+=`Generated,${new Date().toLocaleString()}\n\n`;
   csv+=`Session,Indicator ID,Indicator Name,Score,Level,Rationale,Improvement Feedback,Evidence Quote\n`;
   ALL_IND.forEach(ind=>{
@@ -2753,17 +2758,18 @@ async function exportCohortCSV(){
   if(setupData.cohort)rows.push(['Cohort',setupData.cohort]);
   rows.push(['Generated',new Date().toLocaleDateString()]);
   rows.push([]);
-  const commU=results.map(s=>s.comm_user).filter(v=>v!=null);
-  const ctU=results.map(s=>s.ct_user).filter(v=>v!=null);
-  const commC=results.map(s=>s.comm_client).filter(v=>v!=null);
-  const ctC=results.map(s=>s.ct_client).filter(v=>v!=null);
   rows.push(['KPI SUMMARY']);
   rows.push(['Total Participants',results.length]);
   rows.push(['Completed',results.filter(s=>s.completed===1).length]);
-  rows.push(['Avg Comm Score ('+( setupData.sess1||'User Interview')+')',avg(commU)]);
-  rows.push(['Avg CT Score ('+(setupData.sess1||'User Interview')+')',avg(ctU)]);
-  if(commC.length){rows.push(['Avg Comm Score ('+(setupData.sess2||'Client Conversation')+')',avg(commC)]);}
-  if(ctC.length){rows.push(['Avg CT Score ('+(setupData.sess2||'Client Conversation')+')',avg(ctC)]);}
+  const _kdm=getDomainMap();
+  Object.entries(_kdm).forEach(([domain,clusterIdxs])=>{
+    const uVals=results.flatMap(s=>clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null));
+    const cVals=results.flatMap(s=>clusterIdxs.map(ci=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null));
+    const uAvg=uVals.length?(uVals.reduce((a,b)=>a+b,0)/uVals.length).toFixed(2):'N/A';
+    const cAvg=cVals.length?(cVals.reduce((a,b)=>a+b,0)/cVals.length).toFixed(2):'N/A';
+    rows.push([`Avg ${domain} (${setupData.sess1||'User Interview'})`,uAvg]);
+    if(cVals.length) rows.push([`Avg ${domain} (${setupData.sess2||'Client Conversation'})`,cAvg]);
+  });
   rows.push([]);
   const uInds=U_IND.filter(i=>selectedInds.has(i));
   const cInds=C_IND.filter(i=>selectedInds.has(i));
