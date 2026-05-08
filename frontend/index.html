@@ -449,6 +449,25 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
 .batch-chip{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Inter',sans-serif;transition:all .15s;}
 .batch-chip:hover{border-color:var(--accent);color:var(--accent);}
 .batch-chip.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+/* WORKFLOW STEPPER */
+.workflow-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:42px;display:none;align-items:center;position:sticky;top:56px;z-index:40;gap:0;flex-shrink:0;}
+.wf-step{display:flex;align-items:center;gap:7px;padding:0 16px;height:42px;cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;user-select:none;}
+.wf-step:first-child{padding-left:0;}
+.wf-step:hover .wf-lbl{color:var(--text);}
+.wf-step.wf-active{border-bottom-color:var(--accent);}
+.wf-num{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--subtle);flex-shrink:0;transition:all .2s;}
+.wf-step.wf-done .wf-num{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.4);color:#10b981;}
+.wf-step.wf-active .wf-num{background:var(--accent);border-color:var(--accent);color:#fff;}
+.wf-lbl{font-size:12px;font-weight:600;color:var(--subtle);transition:color .15s;}
+.wf-step.wf-active .wf-lbl{color:var(--text);font-weight:700;}
+.wf-step.wf-done .wf-lbl{color:var(--muted);}
+.wf-sep{color:var(--border2);font-size:12px;padding:0 0;user-select:none;flex-shrink:0;}
+/* LOCKED / STEP NAV */
+.nav-item.nav-locked{opacity:0.35;cursor:not-allowed;pointer-events:none;}
+.nav-lock{font-size:9px;margin-left:auto;color:var(--subtle);letter-spacing:0;}
+.nav-sn{width:16px;height:16px;border-radius:50%;background:var(--surface2);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:var(--subtle);flex-shrink:0;transition:all .2s;}
+.nav-item.active .nav-sn{background:var(--accent);border-color:var(--accent);color:#fff;}
+.nav-item.step-done .nav-sn{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.4);color:#10b981;}
 </style>
 </head>
 <body>
@@ -484,44 +503,43 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
     <div class="logo-sub">CPS LEARN Lab · Northeastern University</div>
   </div>
   <nav class="nav">
-    <div class="nav-label">Navigation</div>
     <div class="nav-item active" id="nav-landing" onclick="showPage('landing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Home
     </div>
-    <div class="nav-item" id="nav-about" onclick="showPage('about')">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>About & Workflow
-</div>
-<div class="nav-item" id="nav-guide" onclick="showPage('guide')">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>How to Use
-</div>
     <div class="nav-label">Workspace</div>
     <div class="nav-item" id="nav-setup" onclick="showPage('setup')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Data Setup
+      <div class="nav-sn" id="sn-setup">1</div>Data Setup
     </div>
     <div class="nav-item" id="nav-rubric" onclick="showPage('rubric')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Rubric Framework
+      <div class="nav-sn" id="sn-rubric">2</div>Rubric Framework
     </div>
     <div class="nav-item" id="nav-upload" onclick="showPage('upload')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload & Evaluate
+      <div class="nav-sn" id="sn-upload">3</div>Upload & Evaluate
     </div>
-    <div class="nav-label">Results</div>
-    <div class="nav-item" id="nav-overview" onclick="showPage('overview')">
+    <div class="nav-label" style="display:flex;align-items:center;justify-content:space-between;">Results<span class="nav-lock" id="results-lock">🔒</span></div>
+    <div class="nav-item nav-locked" id="nav-overview" onclick="showPage('overview')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Class Overview
       <span class="nav-badge" id="nav-count" style="display:none"></span>
     </div>
-    <div class="nav-item" id="nav-summary" onclick="showPage('summary')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Summary & Charts
+    <div class="nav-item nav-locked" id="nav-summary" onclick="showPage('summary')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Analytics
     </div>
-    <div class="nav-label">Tools</div>
-    <div class="nav-item" id="nav-assistant" onclick="showPage('assistant')">
+    <div class="nav-item nav-locked" id="nav-assistant" onclick="showPage('assistant')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>AI Assistant
-      <span class="nav-badge-green">NEW</span>
+    </div>
+    <div class="nav-label">Info</div>
+    <div class="nav-item" id="nav-about" onclick="showPage('about')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>About
+    </div>
+    <div class="nav-item" id="nav-guide" onclick="showPage('guide')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>How to Use
     </div>
   </nav>
   <div class="sidebar-footer">
+    <div id="sidebar-user" style="display:none;font-size:11px;color:var(--muted);margin-bottom:9px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
     <div class="status-pill">
       <div class="status-dot"></div>
-      <span class="status-text">AI Active · v2.0</span>
+      <span class="status-text" id="status-text">AI Active · v2.0</span>
     </div>
   </div>
 </aside>
@@ -537,6 +555,30 @@ td{padding:9px 12px;color:var(--muted);white-space:nowrap;}
       <button class="btn btn-ghost" id="btn-pdf" style="display:none" disabled>⬇ Formatted Report</button>
       <button class="btn" onclick="showPage('setup')">New Evaluation</button>
     </div>
+  </div>
+
+  <!-- WORKFLOW STEPPER -->
+  <div class="workflow-bar" id="workflow-bar">
+    <div class="wf-step wf-active" id="wf-1" onclick="showPage('setup')">
+      <div class="wf-num" id="wfn-1">1</div>
+      <span class="wf-lbl">Data Setup</span>
+    </div>
+    <div class="wf-sep">›</div>
+    <div class="wf-step" id="wf-2" onclick="showPage('rubric')">
+      <div class="wf-num" id="wfn-2">2</div>
+      <span class="wf-lbl">Rubric</span>
+    </div>
+    <div class="wf-sep">›</div>
+    <div class="wf-step" id="wf-3" onclick="showPage('upload')">
+      <div class="wf-num" id="wfn-3">3</div>
+      <span class="wf-lbl">Upload & Run</span>
+    </div>
+    <div class="wf-sep">›</div>
+    <div class="wf-step" id="wf-4" onclick="showPage('overview')">
+      <div class="wf-num" id="wfn-4">4</div>
+      <span class="wf-lbl">Results</span>
+    </div>
+    <div style="margin-left:auto;font-size:11px;color:var(--subtle);" id="wf-status"></div>
   </div>
 
   <div class="content">
@@ -1541,6 +1583,7 @@ function handleRubric(input){
     renderRubric();
     renderSessionMapping();
     updateStatusCards();
+    updateWorkflow('rubric');
   };
   reader.readAsText(rubricFile);
 }
@@ -1972,7 +2015,7 @@ async function runEval(){
           ps.textContent=`Evaluating ${evt.done} of ${evt.total} participants...`;
           // Live-render results as they arrive
           if(results.length===1){
-            // First result — switch to overview so user sees the table populate
+            updateNavLockState();
             showPage('overview');
           }
           renderOv();
@@ -1981,7 +2024,9 @@ async function runEval(){
           ps.textContent=`Done. ${results.length} participants evaluated.`;
           const badge=document.getElementById('nav-count');
           if(badge){badge.textContent=results.length;badge.style.display='inline';}
+          updateWorkflow('overview');
           renderOv();
+          toast(results.length+' participants evaluated.','ok');
         }
       }
     }
@@ -2708,27 +2753,84 @@ function saveSetupForm(){
   const saved=document.getElementById('setup-saved');
   if(saved){saved.style.display='inline';setTimeout(()=>saved.style.display='none',2000);}
   toast('Setup saved.','ok');
+  updateNavSteps();
 }
 
 // ── PAGE NAV ──────────────────────────────────────────────────
 function toggleFaq(el){
   el.closest('.faq-item').classList.toggle('open');
 }
+
+function updateNavLockState(){
+  const has=results.length>0;
+  ['nav-overview','nav-summary','nav-assistant'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){if(has)el.classList.remove('nav-locked');else el.classList.add('nav-locked');}
+  });
+  const lk=document.getElementById('results-lock');
+  if(lk) lk.style.display=has?'none':'';
+}
+
+function updateNavSteps(){
+  const s1=Object.keys(setupData).length>0;
+  const s2=parsedRubric.length>0;
+  const s3=results.length>0;
+  [['sn-setup',s1,'1'],['sn-rubric',s2,'2'],['sn-upload',s3,'3']].forEach(([id,done,num])=>{
+    const el=document.getElementById(id);if(!el)return;
+    const nav=el.closest('.nav-item');
+    el.textContent=done?'✓':num;
+    if(done)nav?.classList.add('step-done');else nav?.classList.remove('step-done');
+  });
+}
+
+function updateWorkflow(p){
+  const workspacePages=['setup','rubric','upload','overview','summary','assistant'];
+  const bar=document.getElementById('workflow-bar');
+  if(bar) bar.style.display=workspacePages.includes(p)?'flex':'none';
+
+  const s1=Object.keys(setupData).length>0;
+  const s2=parsedRubric.length>0;
+  const s3=results.length>0;
+  const resultPages=['overview','summary','assistant'];
+
+  const steps=[
+    {id:'wf-1',nid:'wfn-1',done:s1&&p!=='setup',active:p==='setup'},
+    {id:'wf-2',nid:'wfn-2',done:s2&&p!=='rubric',active:p==='rubric'},
+    {id:'wf-3',nid:'wfn-3',done:s3&&p!=='upload',active:p==='upload'},
+    {id:'wf-4',nid:'wfn-4',done:false,active:resultPages.includes(p)},
+  ];
+  steps.forEach(({id,nid,done,active},i)=>{
+    const el=document.getElementById(id),nel=document.getElementById(nid);
+    if(!el)return;
+    el.className='wf-step'+(active?' wf-active':done?' wf-done':'');
+    if(nel) nel.textContent=done?'✓':(i+1);
+  });
+
+  const wfSt=document.getElementById('wf-status');
+  if(wfSt){
+    if(results.length) wfSt.textContent=results.length+' participants evaluated';
+    else if(s2) wfSt.textContent=parsedRubric.length+' clusters · '+(parsedRubric.reduce((a,c)=>a+c.inds.length,0))+' indicators loaded';
+    else wfSt.textContent='';
+  }
+  updateNavSteps();
+  updateNavLockState();
+}
+
 function showPage(p){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   document.getElementById('nav-'+p)?.classList.add('active');
   document.querySelector('.content').classList.toggle('chat-mode',p==='assistant');
-  const T={landing:'Home',about:'About & Workflow',guide:'How to Use',setup:'Data Setup',rubric:'Rubric Framework',upload:'Upload & Evaluate',overview:'Class Overview',summary:'Summary & Charts',assistant:'AI Assistant'};
+  const T={landing:'Home',about:'About',guide:'How to Use',setup:'Data Setup',rubric:'Rubric Framework',upload:'Upload & Evaluate',overview:'Class Overview',summary:'Analytics',assistant:'AI Assistant'};
   const S={
     landing:'AI-powered rubric-based interview assessment',
-    about:'Step-by-step workflow guide for researchers and educators',
-    guide:'Complete guide for new users — everything you need to know',
+    about:'Workflow guide for researchers and educators',
+    guide:'Complete guide for new users',
     setup:'Configure evaluation context — fed directly to AI for improved scoring',
     rubric:'Upload rubric · Select indicators for evaluation',
     upload:'Upload transcript CSV · Run AI evaluation',
-    overview:results.length?results.length+' participants evaluated':'No evaluation run yet',
+    overview:results.length?results.length+' participants evaluated · click any row to inspect':'No evaluation run yet',
     summary:results.length?'Cohort performance insights and charts':'No evaluation run yet',
     assistant:'Query evaluation results using natural language'
   };
@@ -2752,6 +2854,7 @@ function showPage(p){
   if(p==='summary'){renderSum();if(results.length&&!cohortSummary)generateCohortSummary();}
   if(p==='rubric'){renderRubric();renderSessionMapping();}
   if(p==='upload') updateStatusCards();
+  updateWorkflow(p);
 }
 
 function toast(msg,type=''){
@@ -2764,6 +2867,9 @@ function doLogin(){
   const name=email.split('@')[0]||'Researcher';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('sc-app').classList.add('active');
+  const su=document.getElementById('sidebar-user');
+  if(su&&email){su.textContent=email;su.style.display='';}
+  updateNavLockState();
   toast('Welcome, '+name+'!','ok');
 }
 function toggleSidebar(){
