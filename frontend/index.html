@@ -1700,6 +1700,23 @@ thead th{position:sticky;top:0;z-index:2;}
           <p>Scenario-specific level anchors (.md or .txt) — passed to AI alongside the rubric</p>
           <div class="file-tag" id="scoring-guide-name" style="color:#a78bfa;"></div>
         </div>
+
+        <!-- Scoring Guide Preview Panel -->
+        <div id="sg-preview" style="display:none;margin-top:10px;border:1px solid rgba(124,58,237,.25);border-radius:10px;background:rgba(124,58,237,.04);overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(124,58,237,.15);background:rgba(124,58,237,.08);">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span style="font-size:12px;font-weight:700;color:#a78bfa;">What Claude receives — Scoring Guide</span>
+              <span style="font-size:11px;color:var(--muted);background:rgba(124,58,237,.12);padding:1px 7px;border-radius:10px;" id="sg-meta"></span>
+            </div>
+            <button onclick="document.getElementById('sg-preview').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;">&times;</button>
+          </div>
+          <div style="padding:12px 14px;">
+            <p style="font-size:11px;color:var(--muted);margin:0 0 8px;">This text is injected into every Claude prompt as <strong style="color:#a78bfa;">SCORING GUIDE (scenario-specific level anchors)</strong> — placed between your rubric and the transcript. It tells Claude exactly what each score level looks like in <em>this specific simulation</em>, overriding generic rubric language with concrete behavioral examples.</p>
+            <pre id="sg-preview-content" style="font-size:11px;line-height:1.6;color:var(--text);background:rgba(0,0,0,.2);border-radius:6px;padding:12px;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-word;margin:0;border:1px solid rgba(255,255,255,.05);"></pre>
+          </div>
+        </div>
+
         <div id="col-banner" style="display:none;margin-top:12px;background:var(--accent-glow);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:11px 14px;align-items:center;justify-content:space-between;">
           <div>
             <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:2px;" id="col-banner-title">Columns detected</div>
@@ -2006,6 +2023,19 @@ function handleScoringGuide(input){
   document.getElementById('scoring-guide-name').textContent='✓ '+scoringGuideFile.name;
   document.getElementById('scoring-guide-zone').style.borderColor='rgba(124,58,237,.6)';
   toast('Scoring guide loaded: '+scoringGuideFile.name,'ok');
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    const preview=document.getElementById('sg-preview');
+    const content=document.getElementById('sg-preview-content');
+    const lines=text.split('\n');
+    const charCount=text.length;
+    const lineCount=lines.length;
+    content.textContent=text;
+    document.getElementById('sg-meta').textContent=`${lineCount} lines · ${charCount.toLocaleString()} characters`;
+    preview.style.display='block';
+  };
+  reader.readAsText(scoringGuideFile);
 }
 
 function handleRubric(input){
