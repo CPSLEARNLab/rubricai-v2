@@ -233,7 +233,8 @@ def determine_flags(scores_dict):
 def evaluate_session(
     transcript, participant_id, session_type,
     duration=0, rubric_text=None,
-    selected_indicators=None, setup_data=None, rubric_desc_map=None
+    selected_indicators=None, setup_data=None, rubric_desc_map=None,
+    scoring_guide=None
 ):
     if not rubric_text:
         rubric_text = load_rubric()
@@ -256,6 +257,8 @@ def evaluate_session(
 
     print(f"  [{session_label}] {participant_id} — {len(selected_indicators)} indicators")
 
+    scoring_guide_block = f"\nSCORING GUIDE (scenario-specific level anchors — use to calibrate scores):\n{scoring_guide}\n" if scoring_guide and scoring_guide.strip() else ""
+
     prompt = f"""You are an expert educational assessor for a university research lab.
 Evaluate this student's {session_label} transcript against the rubric below.
 
@@ -268,7 +271,7 @@ INDICATORS TO SCORE:
 
 RUBRIC LEVEL DESCRIPTORS (score STRICTLY against these — not general impression):
 {rubric_section}
-
+{scoring_guide_block}
 STUDENT TRANSCRIPT:
 {transcript_section}
 
@@ -340,7 +343,7 @@ def get_col(row, *keys, default=""):
 def evaluate_participant(
     row, rubric_text=None,
     selected_u_indicators=None, selected_c_indicators=None,
-    setup_data=None, rubric_desc_map=None
+    setup_data=None, rubric_desc_map=None, scoring_guide=None
 ):
     pid = get_col(row, "participant_id", "student_id", "id", "student", "name", "participant")
     simulation = get_col(row, "simulation", "sim", "course", "assignment", "session_name", "scenario")
@@ -383,7 +386,8 @@ def evaluate_participant(
             rubric_text=rubric_text,
             selected_indicators=selected_u_indicators,
             setup_data=setup_data,
-            rubric_desc_map=rubric_desc_map
+            rubric_desc_map=rubric_desc_map,
+            scoring_guide=scoring_guide
         )
         if user_result:
             comm, ct = calculate_scores(user_result.get("scores", {}), selected_u_indicators)
@@ -408,7 +412,8 @@ def evaluate_participant(
             rubric_text=rubric_text,
             selected_indicators=selected_c_indicators,
             setup_data=setup_data,
-            rubric_desc_map=rubric_desc_map
+            rubric_desc_map=rubric_desc_map,
+            scoring_guide=scoring_guide
         )
         if client_result:
             comm, ct = calculate_scores(client_result.get("scores", {}), selected_c_indicators)
@@ -441,7 +446,7 @@ def _domain_avgs_from_clusters(cluster_avgs, cluster_domain_map):
 
 async def evaluate_participant_async(
     row, rubric_text, sel_u, sel_c,
-    setup_data, rubric_desc_map, semaphore, cluster_domain_map=None
+    setup_data, rubric_desc_map, semaphore, cluster_domain_map=None, scoring_guide=None
 ):
     async with semaphore:
         loop = asyncio.get_event_loop()
@@ -494,7 +499,8 @@ async def evaluate_participant_async(
                 executor,
                 lambda: evaluate_session(
                     transcript_user, pid, "user_interview",
-                    duration_user, rubric_text, sel_u, setup_data, rubric_desc_map
+                    duration_user, rubric_text, sel_u, setup_data, rubric_desc_map,
+                    scoring_guide
                 )
             )
 
@@ -509,7 +515,8 @@ async def evaluate_participant_async(
                 executor,
                 lambda: evaluate_session(
                     transcript_client, pid, "client_conversation",
-                    duration_client, rubric_text, sel_c, setup_data, rubric_desc_map
+                    duration_client, rubric_text, sel_c, setup_data, rubric_desc_map,
+                    scoring_guide
                 )
             )
 

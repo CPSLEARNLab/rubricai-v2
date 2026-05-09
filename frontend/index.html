@@ -1693,6 +1693,13 @@ thead th{position:sticky;top:0;z-index:2;}
           <p>CSV · Excel (.xlsx / .xls) — columns auto-detected</p>
           <div class="file-tag" id="file-name"></div>
         </div>
+        <div class="upload-zone" style="min-height:100px;margin-top:12px;border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.04);" id="scoring-guide-zone">
+          <input type="file" accept=".md,.txt" onchange="handleScoringGuide(this)"/>
+          <div class="upload-icon" style="background:rgba(124,58,237,.1);border-color:rgba(124,58,237,.2);"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+          <h3 style="color:var(--text);">Scoring Guide <span style="font-size:11px;font-weight:400;color:var(--muted);">optional</span></h3>
+          <p>Scenario-specific level anchors (.md or .txt) — passed to AI alongside the rubric</p>
+          <div class="file-tag" id="scoring-guide-name" style="color:#a78bfa;"></div>
+        </div>
         <div id="col-banner" style="display:none;margin-top:12px;background:var(--accent-glow);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:11px 14px;align-items:center;justify-content:space-between;">
           <div>
             <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:2px;" id="col-banner-title">Columns detected</div>
@@ -1857,7 +1864,7 @@ const API=window.location.hostname==='localhost'||window.location.hostname==='12
 const BC=['b0','b1','b2','b3','b4'];
 const BS=['N/A','Beg','Dev','App','Mas'];
 
-let results=[],sess='user',file=null,rubricFile=null,chatHist=[];
+let results=[],sess='user',file=null,rubricFile=null,scoringGuideFile=null,chatHist=[];
 let parsedRubric=[],cohortSummary='',currentPid='';
 let selectedInds=new Set();
 let detectedColumns=[],columnMapping={},csvSample={};
@@ -1991,6 +1998,14 @@ function levelFromText(t){
   if(/level\s*3|score\s*3|applying/i.test(t)) return 2;
   if(/level\s*4|score\s*4|mastery/i.test(t)) return 3;
   return -1;
+}
+
+function handleScoringGuide(input){
+  scoringGuideFile=input.files[0];
+  if(!scoringGuideFile)return;
+  document.getElementById('scoring-guide-name').textContent='✓ '+scoringGuideFile.name;
+  document.getElementById('scoring-guide-zone').style.borderColor='rgba(124,58,237,.6)';
+  toast('Scoring guide loaded: '+scoringGuideFile.name,'ok');
 }
 
 function handleRubric(input){
@@ -2401,6 +2416,7 @@ async function runEval(){
   const fd=new FormData();
   fd.append('file',file);
   if(rubricFile) fd.append('rubric',rubricFile);
+  if(scoringGuideFile) fd.append('scoring_guide',scoringGuideFile);
   if(Object.keys(columnMapping).length>0) fd.append('column_mapping',JSON.stringify(columnMapping));
   fd.append('selected_u_indicators',JSON.stringify(U_IND.filter(i=>selectedInds.has(i))));
   fd.append('selected_c_indicators',JSON.stringify(C_IND.filter(i=>selectedInds.has(i))));

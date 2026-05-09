@@ -126,6 +126,7 @@ async def detect_columns(file: UploadFile = File(...)):
 async def evaluate(
     file: UploadFile = File(...),
     rubric: Optional[UploadFile] = File(None),
+    scoring_guide: Optional[UploadFile] = File(None),
     column_mapping: Optional[str] = Form(None),
     selected_indicators: Optional[str] = Form(None),
     selected_u_indicators: Optional[str] = Form(None),
@@ -145,6 +146,12 @@ async def evaluate(
                 f.write(rubric_text)
         else:
             rubric_text = load_rubric()
+
+        # Load optional scoring guide
+        scoring_guide_text = None
+        if scoring_guide and scoring_guide.filename:
+            scoring_guide_text = (await scoring_guide.read()).decode("utf-8")
+            print(f"  Scoring guide loaded: {scoring_guide.filename} ({len(scoring_guide_text)} chars)")
 
         # Parse indicators — prefer split U/C, fall back to legacy combined
         def parse_json_field(s):
@@ -196,7 +203,7 @@ async def evaluate(
         tasks = [
             evaluate_participant_async(
                 row, rubric_text, sel_u, sel_c,
-                setup, desc_map, semaphore, cdm
+                setup, desc_map, semaphore, cdm, scoring_guide_text
             )
             for row in rows
         ]
@@ -221,6 +228,7 @@ async def evaluate(
 async def evaluate_stream(
     file: UploadFile = File(...),
     rubric: Optional[UploadFile] = File(None),
+    scoring_guide: Optional[UploadFile] = File(None),
     column_mapping: Optional[str] = Form(None),
     selected_indicators: Optional[str] = Form(None),
     selected_u_indicators: Optional[str] = Form(None),
@@ -240,6 +248,11 @@ async def evaluate_stream(
                 f.write(rubric_text)
         else:
             rubric_text = load_rubric()
+
+        scoring_guide_text = None
+        if scoring_guide and scoring_guide.filename:
+            scoring_guide_text = (await scoring_guide.read()).decode("utf-8")
+            print(f"  Scoring guide loaded: {scoring_guide.filename} ({len(scoring_guide_text)} chars)")
 
         def parse_json_field(s):
             try:
@@ -292,7 +305,7 @@ async def evaluate_stream(
         async def wrapped(row):
             try:
                 result = await evaluate_participant_async(
-                    row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore, cdm
+                    row, rubric_text, sel_u, sel_c, setup, desc_map, semaphore, cdm, scoring_guide_text
                 )
             except Exception as e:
                 import traceback; traceback.print_exc()
