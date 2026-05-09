@@ -3126,7 +3126,9 @@ async function exportPDF(){
       user_avg:parseFloat((clusterIdxs.flatMap(ci=>results.map(s=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null)).reduce((a,b,_,arr)=>a+b/arr.length,0)||0).toFixed(2)),
       client_avg:parseFloat((clusterIdxs.flatMap(ci=>results.map(s=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null)).reduce((a,b,_,arr)=>a+b/arr.length,0)||0).toFixed(2))
     }));
-    const r=await fetch(`${API}/api/export/pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students:results,setup_data:setupData,domain_scores:domainScores})});
+    const indInfoMap={};
+    parsedRubric.forEach(c=>c.inds.forEach(ind=>{indInfoMap[ind.id]={name:ind.name,domain:c.domain||'',cluster:c.cluster||''};}));
+    const r=await fetch(`${API}/api/export/pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students:results,setup_data:setupData,domain_scores:domainScores,ind_info_map:indInfoMap})});
     if(!r.ok) throw new Error();
     const b=await r.blob();
     const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='rubricai_report.pdf';a.click();
@@ -3184,11 +3186,13 @@ async function exportCohortCSV(){
 }
 async function exportCohortPDF(){
   if(!results.length){toast('No data to export.','err');return;}
+  const btn=document.getElementById('btn-pdf');
+  const origText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='⏳ Generating PDF...';}
   try{
     const avg=arr=>arr.length?parseFloat((arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2)):null;
     const uInds=U_IND.filter(i=>selectedInds.has(i));
     const cInds=C_IND.filter(i=>selectedInds.has(i));
-    // use batch-filtered data if a class is selected
     const data=activeSummaryBatch?results.filter(s=>(s.batch||'')===activeSummaryBatch):results;
     const batchLabel=activeSummaryBatch?`Class ${activeSummaryBatch}`:'';
     const allScoreVals=data.flatMap(s=>[...uInds.map(i=>s[i+'_user_score']),...cInds.map(i=>s[i+'_client_score'])].filter(v=>v));
@@ -3198,9 +3202,12 @@ async function exportCohortPDF(){
       user_avg:parseFloat((clusterIdxs.flatMap(ci=>data.map(s=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null)).reduce((a,b,_,arr)=>a+b/arr.length,0)||0).toFixed(2)),
       client_avg:parseFloat((clusterIdxs.flatMap(ci=>data.map(s=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null)).reduce((a,b,_,arr)=>a+b/arr.length,0)||0).toFixed(2))
     }));
+    const indInfoMap={};
+    parsedRubric.forEach(c=>c.inds.forEach(ind=>{indInfoMap[ind.id]={name:ind.name,domain:c.domain||'',cluster:c.cluster||''};}));
     const payload={
       setup_data:{...setupData,...(batchLabel?{cohort:batchLabel}:{})},
       domain_scores:domainScores,
+      ind_info_map:indInfoMap,
       kpis:{
         total:data.length,
         completed:data.filter(s=>s.completed===1).length,
@@ -3211,8 +3218,8 @@ async function exportCohortPDF(){
       },
       distribution:[1,2,3,4].map(l=>({level:l,label:['','Beginning','Developing','Applying','Mastery'][l],count:allScoreVals.filter(v=>v===l).length,pct:allScoreVals.length?Math.round(allScoreVals.filter(v=>v===l).length/allScoreVals.length*100):0})),
       indicator_averages:[
-        ...uInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,session:setupData.sess1||'User Interview',avg:avg(data.map(s=>s[ind+'_user_score']).filter(v=>v))})),
-        ...cInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,session:setupData.sess2||'Client Conversation',avg:avg(data.map(s=>s[ind+'_client_score']).filter(v=>v))}))
+        ...uInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,domain:(indInfoMap[ind]||{}).domain||'',cluster:(indInfoMap[ind]||{}).cluster||'',session:setupData.sess1||'User Interview',avg:avg(data.map(s=>s[ind+'_user_score']).filter(v=>v))})),
+        ...cInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,domain:(indInfoMap[ind]||{}).domain||'',cluster:(indInfoMap[ind]||{}).cluster||'',session:setupData.sess2||'Client Conversation',avg:avg(data.map(s=>s[ind+'_client_score']).filter(v=>v))}))
       ],
       cohort_summary:cohortSummary||''
     };
@@ -3222,6 +3229,7 @@ async function exportCohortPDF(){
     const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='rubricai_cohort_report.pdf';a.click();
     toast('Cohort report downloaded.','ok');
   }catch(e){toast('Export failed: '+e.message,'err');}
+  finally{if(btn){btn.disabled=false;btn.textContent=origText;}}
 }
 
 // ── SETUP ─────────────────────────────────────────────────────

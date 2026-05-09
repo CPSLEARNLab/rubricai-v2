@@ -391,6 +391,7 @@ async def export_csv(request: dict):
 async def export_pdf(request: dict):
     students = request.get("students", [])
     setup = request.get("setup_data", {})
+    ind_info_map = request.get("ind_info_map", {})
     if not students:
         return JSONResponse({"status": "error", "message": "No data to export"})
 
@@ -570,8 +571,13 @@ async def export_pdf(request: dict):
                 fb = data.get("feedback", "")
                 quotes = data.get("quotes", [])
                 ev = quotes[0] if quotes else ""
+                info = ind_info_map.get(ind, {})
+                ind_display = info.get("name") or ind
+                domain_name = info.get("domain", "")
+                cluster_name = info.get("cluster", "")
+                breadcrumb = f"<br/><font size='6.5' color='#94a3b8'>{domain_name} · {cluster_name}</font>" if domain_name or cluster_name else ""
                 ind_table_data.append([
-                    Paragraph(f"<b>{ind}</b>", score_style),
+                    Paragraph(f"<b>{ind_display}</b>{breadcrumb}", score_style),
                     Paragraph(f"<b>{sc}</b>", score_style),
                     Paragraph(lvl, score_style),
                     Paragraph(rat, body_style),
@@ -634,6 +640,7 @@ async def export_cohort_pdf(request: dict):
     distribution = request.get("distribution", [])
     indicator_averages = request.get("indicator_averages", [])
     cohort_summary = request.get("cohort_summary", "")
+    ind_info_map = request.get("ind_info_map", {})
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -793,45 +800,62 @@ async def export_cohort_pdf(request: dict):
         bar_h = 14
         gap = 7
         max_val = 4.0
-        label_w = 150
-        bar_max_w = 240
+        label_w = 160
+        bar_max_w = 230
         val_w = 40
         total_cw = label_w + bar_max_w + val_w + 10
-        chunk_size = 30
         score_colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
-        for chunk_start in range(0, len(indicator_averages), chunk_size):
-            chunk = indicator_averages[chunk_start:chunk_start+chunk_size]
-            total_ch = (bar_h + gap) * len(chunk) + 24
-            ind_d = Drawing(total_cw, total_ch)
-            for i, row in enumerate(reversed(chunk)):
-                y = 12 + i * (bar_h + gap)
-                avg = row.get("avg") or 0
-                bw = int(avg / max_val * bar_max_w)
-                cidx = min(int(avg / max_val * 4), 3) if avg > 0 else 0
-                clr = score_colors[cidx]
-                ind_d.add(Rect(label_w, y, bar_max_w, bar_h,
-                               fillColor=colors.HexColor('#f1f5f9'), strokeColor=None))
-                if bw > 0:
-                    ind_d.add(Rect(label_w, y, bw, bar_h,
-                                   fillColor=colors.HexColor(clr), strokeColor=None))
-                name = row.get("name") or row.get("id", "")
-                if len(name) > 26:
-                    name = name[:25] + "..."
-                sess = row.get("session", "")
-                label_text = f"{name} ({sess})" if sess else name
-                if len(label_text) > 30:
-                    label_text = label_text[:29] + "..."
-                ind_d.add(String(label_w - 5, y + 3, label_text, fontSize=6.5,
-                                 textAnchor='end', fillColor=colors.HexColor('#334155')))
-                avg_str = f"{avg:.2f}" if avg else "0.00"
-                ind_d.add(String(label_w + bw + 5, y + 3, avg_str, fontSize=7,
-                                 textAnchor='start', fillColor=colors.HexColor('#334155')))
-            for tick_val in [1, 2, 3, 4]:
-                tx = label_w + int(tick_val / max_val * bar_max_w)
-                ind_d.add(String(tx, 3, str(tick_val), fontSize=6, textAnchor='middle',
-                                 fillColor=colors.HexColor('#94a3b8')))
-            story.append(ind_d)
-            story.append(Spacer(1, 12))
+        domain_head_style = ParagraphStyle('DomainHead', parent=styles['Normal'],
+            fontSize=8, fontName='Helvetica-Bold',
+            textColor=colors.HexColor('#3b82f6'), spaceBefore=10, spaceAfter=2)
+        cluster_head_style = ParagraphStyle('ClusterHead', parent=styles['Normal'],
+            fontSize=7.5, fontName='Helvetica-Oblique',
+            textColor=colors.HexColor('#64748b'), spaceBefore=4, spaceAfter=2)
+
+        # Group by domain → cluster for display
+        from collections import OrderedDict
+        grouped = OrderedDict()
+        for row in indicator_averages:
+            d = row.get("domain") or "General"
+            c = row.get("cluster") or ""
+            grouped.setdefault(d, OrderedDict()).setdefault(c, []).append(row)
+
+        for domain_name, clusters in grouped.items():
+            story.append(Paragraph(domain_name.upper(), domain_head_style))
+            for cluster_name, rows in clusters.items():
+                if cluster_name:
+                    story.append(Paragraph(cluster_name, cluster_head_style))
+                total_ch = (bar_h + gap) * len(rows) + 24
+                ind_d = Drawing(total_cw, total_ch)
+                for i, row in enumerate(reversed(rows)):
+                    y = 12 + i * (bar_h + gap)
+                    avg = row.get("avg") or 0
+                    bw = int(avg / max_val * bar_max_w)
+                    cidx = min(int(avg / max_val * 4), 3) if avg > 0 else 0
+                    clr = score_colors[cidx]
+                    ind_d.add(Rect(label_w, y, bar_max_w, bar_h,
+                                   fillColor=colors.HexColor('#f1f5f9'), strokeColor=None))
+                    if bw > 0:
+                        ind_d.add(Rect(label_w, y, bw, bar_h,
+                                       fillColor=colors.HexColor(clr), strokeColor=None))
+                    name = row.get("name") or row.get("id", "")
+                    if len(name) > 28:
+                        name = name[:27] + "..."
+                    sess = row.get("session", "")
+                    label_text = f"{name} ({sess})" if sess else name
+                    if len(label_text) > 35:
+                        label_text = label_text[:34] + "..."
+                    ind_d.add(String(label_w - 5, y + 3, label_text, fontSize=6.5,
+                                     textAnchor='end', fillColor=colors.HexColor('#334155')))
+                    avg_str = f"{avg:.2f}" if avg else "0.00"
+                    ind_d.add(String(label_w + bw + 5, y + 3, avg_str, fontSize=7,
+                                     textAnchor='start', fillColor=colors.HexColor('#334155')))
+                for tick_val in [1, 2, 3, 4]:
+                    tx = label_w + int(tick_val / max_val * bar_max_w)
+                    ind_d.add(String(tx, 3, str(tick_val), fontSize=6, textAnchor='middle',
+                                     fillColor=colors.HexColor('#94a3b8')))
+                story.append(ind_d)
+                story.append(Spacer(1, 6))
     # ── AI Cohort Summary ──
     if cohort_summary:
         story.append(Paragraph("AI Cohort Summary", head_style))
