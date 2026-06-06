@@ -2060,6 +2060,7 @@ function handleRubric(input){
     const totalInds=parsedRubric.reduce((a,c)=>a+c.inds.length,0);
     document.getElementById('rubric-status-title').textContent=rubricFile.name+' loaded ✓';
     document.getElementById('rubric-status-sub').textContent=parsedRubric.length+' clusters · '+totalInds+' indicators parsed';
+    clearResults();
     toast(rubricFile.name+' loaded. '+totalInds+' indicators found.','ok');
     renderRubric();
     renderSessionMapping();
@@ -2302,6 +2303,7 @@ function updateStatusCards(){
 // ── FILE UPLOAD ───────────────────────────────────────────────
 async function handleFile(input){
   file=input.files[0];if(!file)return;
+  clearResults();
   document.getElementById('file-name').textContent='Selected: '+file.name;
   document.getElementById('run-btn').disabled=true;
   columnMapping={};detectedColumns=[];
@@ -3195,7 +3197,6 @@ async function exportCohortPDF(){
     const cInds=C_IND.filter(i=>selectedInds.has(i));
     const data=activeSummaryBatch?results.filter(s=>(s.batch||'')===activeSummaryBatch):results;
     const batchLabel=activeSummaryBatch?`Class ${activeSummaryBatch}`:'';
-    const allScoreVals=data.flatMap(s=>[...uInds.map(i=>s[i+'_user_score']),...cInds.map(i=>s[i+'_client_score'])].filter(v=>v));
     const _dm=getDomainMap();
     const domainScores=Object.entries(_dm).map(([domain,clusterIdxs],i)=>({
       domain,
@@ -3204,6 +3205,24 @@ async function exportCohortPDF(){
     }));
     const indInfoMap={};
     parsedRubric.forEach(c=>c.inds.forEach(ind=>{indInfoMap[ind.id]={name:ind.name,domain:c.domain||'',cluster:c.cluster||''};}));
+    const getDomainDistributions=(dm,d)=>Object.entries(dm).map(([domain,clusterIdxs])=>{
+      const getBands=(suffix)=>{
+        const avgs=d.map(s=>{
+          const vals=clusterIdxs.map(ci=>s[`cluster_${ci}_${suffix}`]).filter(v=>v!=null);
+          return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+        }).filter(v=>v!=null);
+        if(!avgs.length)return null;
+        const tot=avgs.length;
+        return[
+          {range:'1.0–1.9',count:avgs.filter(v=>v>=1&&v<2).length,pct:Math.round(avgs.filter(v=>v>=1&&v<2).length/tot*100)},
+          {range:'2.0–2.9',count:avgs.filter(v=>v>=2&&v<3).length,pct:Math.round(avgs.filter(v=>v>=2&&v<3).length/tot*100)},
+          {range:'3.0–3.9',count:avgs.filter(v=>v>=3&&v<4).length,pct:Math.round(avgs.filter(v=>v>=3&&v<4).length/tot*100)},
+          {range:'4.0',    count:avgs.filter(v=>v>=4).length,      pct:Math.round(avgs.filter(v=>v>=4).length/tot*100)}
+        ];
+      };
+      return{domain,user:getBands('user_avg'),client:getBands('client_avg')};
+    });
+    const domainDistributions=getDomainDistributions(_dm,data);
     const payload={
       setup_data:{...setupData,...(batchLabel?{cohort:batchLabel}:{})},
       domain_scores:domainScores,
@@ -3216,10 +3235,10 @@ async function exportCohortPDF(){
         avg_comm_client:avg(data.map(s=>s.comm_client).filter(v=>v!=null)),
         avg_ct_client:avg(data.map(s=>s.ct_client).filter(v=>v!=null))
       },
-      distribution:[1,2,3,4].map(l=>({level:l,label:['','Beginning','Developing','Applying','Mastery'][l],count:allScoreVals.filter(v=>v===l).length,pct:allScoreVals.length?Math.round(allScoreVals.filter(v=>v===l).length/allScoreVals.length*100):0})),
+      domain_distributions:domainDistributions,
       indicator_averages:[
-        ...uInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,domain:(indInfoMap[ind]||{}).domain||'',cluster:(indInfoMap[ind]||{}).cluster||'',session:setupData.sess1||'User Interview',avg:avg(data.map(s=>s[ind+'_user_score']).filter(v=>v))})),
-        ...cInds.map(ind=>({id:ind,name:rubricDescMap[ind]||ind,domain:(indInfoMap[ind]||{}).domain||'',cluster:(indInfoMap[ind]||{}).cluster||'',session:setupData.sess2||'Client Conversation',avg:avg(data.map(s=>s[ind+'_client_score']).filter(v=>v))}))
+        ...uInds.map(ind=>{const scores=data.map(s=>s[ind+'_user_score']).filter(v=>v);return{id:ind,name:rubricDescMap[ind]||ind,domain:(indInfoMap[ind]||{}).domain||'',cluster:(indInfoMap[ind]||{}).cluster||'',session:setupData.sess1||'User Interview',avg:avg(scores),level_counts:[1,2,3,4].map(l=>scores.filter(v=>v===l).length)};}),
+        ...cInds.map(ind=>{const scores=data.map(s=>s[ind+'_client_score']).filter(v=>v);return{id:ind,name:rubricDescMap[ind]||ind,domain:(indInfoMap[ind]||{}).domain||'',cluster:(indInfoMap[ind]||{}).cluster||'',session:setupData.sess2||'Client Conversation',avg:avg(scores),level_counts:[1,2,3,4].map(l=>scores.filter(v=>v===l).length)};})
       ],
       cohort_summary:cohortSummary||''
     };
@@ -3255,6 +3274,20 @@ function saveSetupForm(){
 // ── PAGE NAV ──────────────────────────────────────────────────
 function toggleFaq(el){
   el.closest('.faq-item').classList.toggle('open');
+}
+
+function clearResults(){
+  results=[];
+  cohortSummary='';
+  const badge=document.getElementById('nav-count');
+  if(badge){badge.textContent='';badge.style.display='none';}
+  updateNavLockState();
+  updateNavSteps();
+  const activePage=document.querySelector('.page.active');
+  if(activePage){
+    const pid=activePage.id.replace('page-','');
+    if(['overview','summary','assistant'].includes(pid)) showPage('upload');
+  }
 }
 
 function updateNavLockState(){

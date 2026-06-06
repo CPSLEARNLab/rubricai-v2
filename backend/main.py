@@ -637,7 +637,7 @@ async def export_cohort_pdf(request: dict):
     from datetime import datetime
     setup = request.get("setup_data", {})
     kpis = request.get("kpis", {})
-    distribution = request.get("distribution", [])
+    domain_distributions = request.get("domain_distributions", [])
     indicator_averages = request.get("indicator_averages", [])
     cohort_summary = request.get("cohort_summary", "")
     ind_info_map = request.get("ind_info_map", {})
@@ -688,8 +688,11 @@ async def export_cohort_pdf(request: dict):
         kpi_headers += ["Avg Comm (User)", "Avg CT (User)"]
         kpi_vals += [str(kpis.get("avg_comm_user") or "N/A"), str(kpis.get("avg_ct_user") or "N/A")]
     n = len(kpi_headers)
-    col_w = 7.0 / n * inch
-    kpi_table = Table([kpi_headers, kpi_vals], colWidths=[col_w]*n)
+    col_w = max(1.1, 7.0 / n) * inch
+    wrap_hdr_style = ParagraphStyle('WrapHdr', alignment=TA_CENTER,
+        fontSize=7.5, fontName='Helvetica-Bold', leading=10)
+    wrapped_headers = [Paragraph(h, wrap_hdr_style) for h in kpi_headers]
+    kpi_table = Table([wrapped_headers, kpi_vals], colWidths=[col_w]*n)
     kpi_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#64748b')),
@@ -747,70 +750,116 @@ async def export_cohort_pdf(request: dict):
         story.append(cd)
         story.append(Spacer(1, 12))
 
-    # ── Score Distribution Chart ──
-    if distribution:
-        story.append(Paragraph("Score Distribution", head_style))
-        level_colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
-        counts = [d.get("count", 0) for d in distribution]
-        labels = [d.get("label", f"Level {d.get('level','')}") for d in distribution]
-        pcts = [d.get("pct", 0) for d in distribution]
-        max_count = max(counts) if any(c > 0 for c in counts) else 1
+    # ── Per-Domain Score Distribution Charts ──
+    if domain_distributions:
+        story.append(Paragraph("Score Distribution by Domain", head_style))
+        band_labels = ['1.0–1.9', '2.0–2.9', '3.0–3.9', '4.0']
+        user_bar_color = '#3b82f6'
+        client_bar_color = '#8b5cf6'
+        domain_sub_style = ParagraphStyle('DomainSub', parent=styles['Normal'],
+            fontSize=9, fontName='Helvetica-Bold',
+            textColor=colors.HexColor('#1e3a5f'), spaceBefore=10, spaceAfter=4)
+        for dd in domain_distributions:
+            domain_label = dd.get("domain", "")
+            user_bands = dd.get("user") or []
+            client_bands = dd.get("client") or []
+            if not user_bands and not client_bands:
+                continue
+            story.append(Paragraph(domain_label, domain_sub_style))
+            cw, ch = 504, 180
+            n_groups = 4
+            group_w = 80
+            gap_g = 30
+            left_pad = 30
+            bottom_pad = 36
+            bar_area_h = 110
+            bd = Drawing(cw, ch)
+            has_both = bool(user_bands) and bool(client_bands)
+            bar_w = 28 if has_both else 44
+            bar_gap = 4
+            all_counts = []
+            if user_bands:
+                all_counts += [b.get("count", 0) for b in user_bands]
+            if client_bands:
+                all_counts += [b.get("count", 0) for b in client_bands]
+            max_count = max(all_counts) if any(c > 0 for c in all_counts) else 1
+            for gi in range(n_groups):
+                gx = left_pad + gi * (group_w + gap_g)
+                u_band = user_bands[gi] if user_bands and gi < len(user_bands) else None
+                c_band = client_bands[gi] if client_bands and gi < len(client_bands) else None
+                # User bar
+                if u_band is not None:
+                    ux = gx if has_both else gx + (group_w - bar_w) / 2
+                    u_cnt = u_band.get("count", 0)
+                    u_pct = u_band.get("pct", 0)
+                    u_bh = int(u_cnt / max_count * bar_area_h) if max_count else 0
+                    bd.add(Rect(ux, bottom_pad, bar_w, bar_area_h,
+                                fillColor=colors.HexColor('#f8fafc'), strokeColor=None))
+                    if u_bh > 0:
+                        bd.add(Rect(ux, bottom_pad, bar_w, u_bh,
+                                    fillColor=colors.HexColor(user_bar_color), strokeColor=None))
+                    bd.add(String(ux + bar_w / 2, bottom_pad + max(u_bh, 4) + 4,
+                                  f"{u_cnt} ({u_pct}%)", fontSize=7, fontName='Helvetica-Bold',
+                                  textAnchor='middle', fillColor=colors.HexColor('#0f172a')))
+                # Client bar
+                if c_band is not None and has_both:
+                    cx2 = gx + bar_w + bar_gap
+                    c_cnt = c_band.get("count", 0)
+                    c_pct = c_band.get("pct", 0)
+                    c_bh = int(c_cnt / max_count * bar_area_h) if max_count else 0
+                    bd.add(Rect(cx2, bottom_pad, bar_w, bar_area_h,
+                                fillColor=colors.HexColor('#f8fafc'), strokeColor=None))
+                    if c_bh > 0:
+                        bd.add(Rect(cx2, bottom_pad, bar_w, c_bh,
+                                    fillColor=colors.HexColor(client_bar_color), strokeColor=None))
+                    bd.add(String(cx2 + bar_w / 2, bottom_pad + max(c_bh, 4) + 4,
+                                  f"{c_cnt} ({c_pct}%)", fontSize=7, fontName='Helvetica-Bold',
+                                  textAnchor='middle', fillColor=colors.HexColor('#0f172a')))
+                # Band label below group
+                label_cx = gx + (bar_w * (2 if has_both else 1) + (bar_gap if has_both else 0)) / 2
+                bd.add(String(label_cx, bottom_pad - 14, band_labels[gi], fontSize=7,
+                              textAnchor='middle', fillColor=colors.HexColor('#64748b')))
+            # Legend
+            lx = left_pad
+            if user_bands:
+                bd.add(Rect(lx, ch - 16, 10, 8, fillColor=colors.HexColor(user_bar_color), strokeColor=None))
+                bd.add(String(lx + 13, ch - 16, "User Avg", fontSize=7,
+                              textAnchor='start', fillColor=colors.HexColor('#334155')))
+            if client_bands and has_both:
+                bd.add(Rect(lx + 70, ch - 16, 10, 8, fillColor=colors.HexColor(client_bar_color), strokeColor=None))
+                bd.add(String(lx + 83, ch - 16, "Client Avg", fontSize=7,
+                              textAnchor='start', fillColor=colors.HexColor('#334155')))
+            story.append(bd)
+            story.append(Spacer(1, 8))
 
-        cw, ch = 504, 200
-        bar_area_h = 130
-        bar_w = 70
-        gap = 24
-        left_pad = 36
-        bottom_pad = 40
-        bd = Drawing(cw, ch)
-
-        # Y-axis grid lines
-        for tick in [0.25, 0.5, 0.75, 1.0]:
-            gy = bottom_pad + int(tick * bar_area_h)
-            bd.add(Line(left_pad - 4, gy, left_pad + 4*(bar_w + gap), gy,
-                        strokeColor=colors.HexColor('#e2e8f0'), strokeWidth=0.5))
-            bd.add(String(left_pad - 6, gy - 3, str(int(tick * max_count)),
-                          fontSize=6.5, textAnchor='end', fillColor=colors.HexColor('#94a3b8')))
-
-        for i, (cnt, clr, lbl, pct) in enumerate(zip(counts, level_colors, labels, pcts)):
-            bh = int(cnt / max_count * bar_area_h) if max_count else 0
-            bx = left_pad + i * (bar_w + gap)
-            by = bottom_pad
-            # Bar background
-            bd.add(Rect(bx, by, bar_w, bar_area_h,
-                        fillColor=colors.HexColor('#f8fafc'), strokeColor=None))
-            # Colored bar
-            if bh > 0:
-                bd.add(Rect(bx, by, bar_w, bh,
-                            fillColor=colors.HexColor(clr), strokeColor=None))
-            # Count + pct label above bar
-            bd.add(String(bx + bar_w / 2, by + max(bh, 4) + 5,
-                          f"{cnt} ({pct}%)", fontSize=8, fontName='Helvetica-Bold',
-                          textAnchor='middle', fillColor=colors.HexColor('#0f172a')))
-            # Level label below bar
-            bd.add(String(bx + bar_w / 2, by - 14, lbl, fontSize=7.5,
-                          textAnchor='middle', fillColor=colors.HexColor('#64748b')))
-
-        story.append(bd)
-        story.append(Spacer(1, 12))
-
-    # ── Indicator Averages Chart ──
+    # ── Indicator Averages Chart (stacked horizontal bars) ──
     if indicator_averages:
-        story.append(Paragraph("Indicator Averages", head_style))
+        story.append(Paragraph("Indicator Performance", head_style))
         bar_h = 14
-        gap = 7
-        max_val = 4.0
+        row_gap = 7
         label_w = 160
-        bar_max_w = 230
-        val_w = 40
-        total_cw = label_w + bar_max_w + val_w + 10
-        score_colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
+        bar_max_w = 240
+        total_cw = label_w + bar_max_w + 60
+        level_clrs = ['#ef4444', '#f97316', '#f59e0b', '#22c55e']
+        level_names = ['L1 Beginning', 'L2 Developing', 'L3 Applying', 'L4 Mastery']
         domain_head_style = ParagraphStyle('DomainHead', parent=styles['Normal'],
             fontSize=8, fontName='Helvetica-Bold',
             textColor=colors.HexColor('#3b82f6'), spaceBefore=10, spaceAfter=2)
         cluster_head_style = ParagraphStyle('ClusterHead', parent=styles['Normal'],
             fontSize=7.5, fontName='Helvetica-Oblique',
             textColor=colors.HexColor('#64748b'), spaceBefore=4, spaceAfter=2)
+
+        # Legend drawing
+        leg_cw, leg_ch = total_cw, 18
+        leg_d = Drawing(leg_cw, leg_ch)
+        lx = label_w
+        for li, (lclr, lname) in enumerate(zip(level_clrs, level_names)):
+            ox = lx + li * 110
+            leg_d.add(Rect(ox, 4, 10, 8, fillColor=colors.HexColor(lclr), strokeColor=None))
+            leg_d.add(String(ox + 13, 5, lname, fontSize=7,
+                             textAnchor='start', fillColor=colors.HexColor('#334155')))
+        story.append(leg_d)
+        story.append(Spacer(1, 4))
 
         # Group by domain → cluster for display
         from collections import OrderedDict
@@ -825,19 +874,30 @@ async def export_cohort_pdf(request: dict):
             for cluster_name, rows in clusters.items():
                 if cluster_name:
                     story.append(Paragraph(cluster_name, cluster_head_style))
-                total_ch = (bar_h + gap) * len(rows) + 24
+                total_ch = (bar_h + row_gap) * len(rows) + 24
                 ind_d = Drawing(total_cw, total_ch)
                 for i, row in enumerate(reversed(rows)):
-                    y = 12 + i * (bar_h + gap)
-                    avg = row.get("avg") or 0
-                    bw = int(avg / max_val * bar_max_w)
-                    cidx = min(int(avg / max_val * 4), 3) if avg > 0 else 0
-                    clr = score_colors[cidx]
+                    y = 12 + i * (bar_h + row_gap)
+                    avg_val = row.get("avg") or 0
+                    level_counts = row.get("level_counts") or [0, 0, 0, 0]
+                    total_students = sum(level_counts)
+                    # Background track
                     ind_d.add(Rect(label_w, y, bar_max_w, bar_h,
                                    fillColor=colors.HexColor('#f1f5f9'), strokeColor=None))
-                    if bw > 0:
-                        ind_d.add(Rect(label_w, y, bw, bar_h,
-                                       fillColor=colors.HexColor(clr), strokeColor=None))
+                    # Stacked segments
+                    seg_x = label_w
+                    for li, (cnt, clr) in enumerate(zip(level_counts, level_clrs)):
+                        if total_students > 0 and cnt > 0:
+                            seg_w = int(cnt / total_students * bar_max_w)
+                            ind_d.add(Rect(seg_x, y, seg_w, bar_h,
+                                          fillColor=colors.HexColor(clr), strokeColor=None))
+                            if seg_w > 20:
+                                ind_d.add(String(seg_x + seg_w / 2, y + 3,
+                                                 str(cnt), fontSize=6.5, fontName='Helvetica-Bold',
+                                                 textAnchor='middle',
+                                                 fillColor=colors.HexColor('#ffffff')))
+                            seg_x += seg_w
+                    # Indicator label
                     name = row.get("name") or row.get("id", "")
                     if len(name) > 28:
                         name = name[:27] + "..."
@@ -847,13 +907,10 @@ async def export_cohort_pdf(request: dict):
                         label_text = label_text[:34] + "..."
                     ind_d.add(String(label_w - 5, y + 3, label_text, fontSize=6.5,
                                      textAnchor='end', fillColor=colors.HexColor('#334155')))
-                    avg_str = f"{avg:.2f}" if avg else "0.00"
-                    ind_d.add(String(label_w + bw + 5, y + 3, avg_str, fontSize=7,
+                    # Avg label at right
+                    avg_str = f"avg: {avg_val:.2f}" if avg_val else "avg: 0.00"
+                    ind_d.add(String(label_w + bar_max_w + 5, y + 3, avg_str, fontSize=7,
                                      textAnchor='start', fillColor=colors.HexColor('#334155')))
-                for tick_val in [1, 2, 3, 4]:
-                    tx = label_w + int(tick_val / max_val * bar_max_w)
-                    ind_d.add(String(tx, 3, str(tick_val), fontSize=6, textAnchor='middle',
-                                     fillColor=colors.HexColor('#94a3b8')))
                 story.append(ind_d)
                 story.append(Spacer(1, 6))
     # ── AI Cohort Summary ──
