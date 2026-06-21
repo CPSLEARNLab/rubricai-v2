@@ -2873,6 +2873,28 @@ function hbarChart(inds,sfx,src){
     </div>`;
   }).join('');
 }
+function stackedHbarChart(inds, sfx, src) {
+  const active = inds.filter(i => selectedInds.has(i));
+  const d = src || results;
+  if (!active.length) return `<p style="font-size:12px;color:var(--subtle);padding:8px 0">No indicators selected.</p>`;
+  const lvlColors = ['#ef4444','#f97316','#f59e0b','#22c55e'];
+  return active.map(ind => {
+    const scores = d.map(s => s[`${ind}${sfx}_score`]).filter(v => v && v > 0);
+    const total = scores.length || 1;
+    const counts = [1,2,3,4].map(l => scores.filter(v => v === l).length);
+    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(2) : 'N/A';
+    const name = rubricDescMap[ind] || ind;
+    const segs = counts.map((cnt, i) => {
+      const w = (cnt / total * 100).toFixed(1);
+      return `<div style="width:${w}%;background:${lvlColors[i]};height:100%;display:flex;align-items:center;justify-content:center;min-width:${cnt>0?'4px':'0'}">${cnt > 0 && parseFloat(w) > 8 ? `<span style="font-size:9px;color:#fff;font-weight:700">${cnt}</span>` : ''}</div>`;
+    }).join('');
+    return `<div class="hbar-item">
+      <div class="hbar-label" title="${name}">${name}</div>
+      <div style="display:flex;flex:1;height:18px;border-radius:4px;overflow:hidden;background:var(--surface2)">${segs}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text);margin-left:8px;min-width:32px;text-align:right">${avg}</div>
+    </div>`;
+  }).join('');
+}
 function donutSVG(comp,inc){
   const total=comp+inc;if(!total)return'';
   const r=55,cx=75,cy=75,stroke=20,circ=2*Math.PI*r;
@@ -2940,14 +2962,41 @@ const defaultColors=['var(--accent)','var(--amber)','#a78bfa','var(--green)','va
   const avgCC=commC.length?(commC.reduce((a,b)=>a+b,0)/commC.length).toFixed(2):'N/A';
   const avgCTC=ctC.length?(ctC.reduce((a,b)=>a+b,0)/ctC.length).toFixed(2):'N/A';
   const compRate=Math.round(comp/tot*100);
-  const allScores=[];
-  ALL_IND.filter(i=>selectedInds.has(i)).forEach(ind=>{
-    const sfx=U_IND.includes(ind)?'_user':'_client';
-    data.forEach(s=>{const v=s[`${ind}${sfx}_score`];if(v) allScores.push(v);});
-  });
-  const dist=[0,0,0,0];
-  allScores.forEach(v=>{const n=Math.min(4,Math.max(1,Math.round(v)));dist[n-1]++;});
-  const maxD=Math.max(...dist)||1;
+
+  const getDomainBands = (domain, clusterIdxs, suffix) => {
+    const avgs = data.map(s => {
+      const vals = clusterIdxs.map(ci => s[`cluster_${ci}_${suffix}`]).filter(v => v != null);
+      return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    }).filter(v => v != null);
+    if (!avgs.length) return null;
+    const tot = avgs.length;
+    return [
+      {range:'1.0–1.9', count:avgs.filter(v=>v>=1&&v<2).length},
+      {range:'2.0–2.9', count:avgs.filter(v=>v>=2&&v<3).length},
+      {range:'3.0–3.9', count:avgs.filter(v=>v>=3&&v<4).length},
+      {range:'4.0',     count:avgs.filter(v=>v>=4).length}
+    ].map(b=>({...b, pct: Math.round(b.count/tot*100)}));
+  };
+
+  const bandColors = ['#ef4444','#f97316','#f59e0b','#22c55e'];
+  const renderDomainBandChart = (domain, clusterIdxs, suffix) => {
+    const bands = getDomainBands(domain, clusterIdxs, suffix);
+    if (!bands) return `<p style="font-size:11px;color:var(--subtle);padding:4px 0">No data.</p>`;
+    return bands.map((b,i)=>{
+      const w = Math.max(b.pct, b.count > 0 ? 4 : 0);
+      return `<div class="hbar-item">
+        <div class="hbar-label" title="${b.range}">${b.range}</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:${w}%;background:${bandColors[i]};min-width:${b.count>0?'4px':'0'}"><span class="hbar-val">${b.count > 0 ? b.count : ''}</span></div></div>
+        <div style="font-size:10px;font-weight:600;color:var(--muted);margin-left:6px;min-width:28px;text-align:right">${b.pct}%</div>
+      </div>`;
+    }).join('');
+  };
+
+  const domainBandCharts = Object.entries(domainMap).map(([domain, clusterIdxs]) =>
+    `<div class="chart-card"><div class="chart-ttl">Score Distribution — ${domain}</div>
+      <div class="hbar-list">${renderDomainBandChart(domain, clusterIdxs, 'user_avg')}</div>
+    </div>`
+  ).join('');
 
 const domainKpiCards=Object.entries(domainMap).map(([domain,clusterIdxs],i)=>{
   const vals=data.flatMap(s=>clusterIdxs.map(ci=>s[`cluster_${ci}_user_avg`]).filter(v=>v!=null));
@@ -2962,21 +3011,7 @@ document.getElementById('dash-overview').innerHTML=`
       <div class="kpi-card"><div class="kpi-label">Total Evaluated</div><div class="kpi-val">${tot}</div><span class="kpi-badge kpi-neutral">${[...new Set(data.map(s=>s.simulation))].length} simulations</span></div>
     </div>
     <div class="charts-2col">
-      <div class="chart-card">
-        <div class="chart-ttl">Score Distribution — All Indicators</div>
-        <div style="display:flex;align-items:flex-end;gap:14px;height:130px;padding:0 8px 26px;position:relative;margin-top:10px;">
-          <div style="position:absolute;bottom:26px;left:0;right:0;height:1px;background:var(--border);"></div>
-          ${['Beginning','Developing','Applying','Mastery'].map((l,i)=>{
-            const cols=['var(--red)','var(--orange)','var(--amber)','var(--green)'];
-            const pct=Math.max((dist[i]/maxD)*100,3);
-            return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;">
-              <div style="font-size:13px;font-weight:800;color:var(--text)">${dist[i]}</div>
-              <div style="width:100%;height:${pct}%;background:${cols[i]};border-radius:5px 5px 0 0;min-height:5px;"></div>
-              <div style="font-size:9px;font-weight:600;color:var(--muted);position:absolute;bottom:5px;">${l}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
+      ${domainBandCharts}
       <div class="chart-card">
         <div class="chart-ttl">Completion Status</div>
         <div class="donut-wrap">
@@ -3000,7 +3035,7 @@ document.getElementById('dash-overview').innerHTML=`
       <div class="kpi-card"><div class="kpi-label">Indicators Evaluated</div><div class="kpi-val">${U_IND.filter(i=>selectedInds.has(i)).length}</div><span class="kpi-badge kpi-neutral">of ${U_IND.length}</span></div>
       <div class="kpi-card"><div class="kpi-label">Participants</div><div class="kpi-val">${data.filter(s=>s.comm_user!=null).length}</div><span class="kpi-badge kpi-neutral">of ${tot}</span></div>
     </div>
-    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess1||'User Interview'}</div><div class="chart-sub">Scored 1–4 against rubric · Colour coded by performance level</div><div class="hbar-list">${hbarChart(U_IND,'_user',data)}</div></div>`;
+    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess1||'User Interview'}</div><div class="chart-sub">Scored 1–4 against rubric · Stacked by performance level</div><div style="display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap;"><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px;display:inline-block"></span>L1 Beg</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#f97316;border-radius:2px;display:inline-block"></span>L2 Dev</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#f59e0b;border-radius:2px;display:inline-block"></span>L3 App</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>L4 Mas</span></div><div class="hbar-list">${stackedHbarChart(U_IND,'_user',data)}</div></div>`;
 
   const clientDomainKpis=Object.entries(domainMap).map(([domain,clusterIdxs],i)=>{
     const vals=data.flatMap(s=>clusterIdxs.map(ci=>s[`cluster_${ci}_client_avg`]).filter(v=>v!=null));
@@ -3013,7 +3048,7 @@ document.getElementById('dash-overview').innerHTML=`
       <div class="kpi-card"><div class="kpi-label">Indicators Evaluated</div><div class="kpi-val">${C_IND.filter(i=>selectedInds.has(i)).length}</div><span class="kpi-badge kpi-neutral">of ${C_IND.length}</span></div>
       <div class="kpi-card"><div class="kpi-label">Participants</div><div class="kpi-val">${data.filter(s=>s.comm_client!=null).length}</div><span class="kpi-badge kpi-neutral">of ${tot}</span></div>
     </div>
-    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess2||'Client Conversation'}</div><div class="chart-sub">Scored 1–4 against rubric · Colour coded by performance level</div><div class="hbar-list">${hbarChart(C_IND,'_client',data)}</div></div>`;
+    <div class="chart-card"><div class="chart-ttl">Avg Score per Indicator — ${setupData.sess2||'Client Conversation'}</div><div class="chart-sub">Scored 1–4 against rubric · Stacked by performance level</div><div style="display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap;"><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px;display:inline-block"></span>L1 Beg</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#f97316;border-radius:2px;display:inline-block"></span>L2 Dev</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#f59e0b;border-radius:2px;display:inline-block"></span>L3 App</span><span style="font-size:10px;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>L4 Mas</span></div><div class="hbar-list">${stackedHbarChart(C_IND,'_client',data)}</div></div>`;
 
   const ranked=[...data].sort((a,b)=>{
     const sa=(a.comm_user??0)+(a.ct_user??0)+(a.comm_client??0)+(a.ct_client??0);

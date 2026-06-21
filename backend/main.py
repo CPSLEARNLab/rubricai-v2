@@ -675,25 +675,15 @@ async def export_cohort_pdf(request: dict):
     # ── KPI Table ──
     story.append(Paragraph("Cohort KPIs", head_style))
     domain_scores = request.get("domain_scores", [])
-    kpi_headers = ["Total Participants", "Completed"]
-    kpi_vals = [str(kpis.get("total", "N/A")), str(kpis.get("completed", "N/A"))]
-    for ds in domain_scores:
-        if ds.get("user_avg"):
-            kpi_headers.append(f"{ds['domain']} (User)")
-            kpi_vals.append(str(ds["user_avg"]))
-        if ds.get("client_avg"):
-            kpi_headers.append(f"{ds['domain']} (Client)")
-            kpi_vals.append(str(ds["client_avg"]))
-    if not domain_scores:
-        kpi_headers += ["Avg Comm (User)", "Avg CT (User)"]
-        kpi_vals += [str(kpis.get("avg_comm_user") or "N/A"), str(kpis.get("avg_ct_user") or "N/A")]
-    n = len(kpi_headers)
-    col_w = max(1.1, 7.0 / n) * inch
     wrap_hdr_style = ParagraphStyle('WrapHdr', alignment=TA_CENTER,
         fontSize=7.5, fontName='Helvetica-Bold', leading=10)
-    wrapped_headers = [Paragraph(h, wrap_hdr_style) for h in kpi_headers]
-    kpi_table = Table([wrapped_headers, kpi_vals], colWidths=[col_w]*n)
-    kpi_table.setStyle(TableStyle([
+
+    # Table 1 — participants summary (2 columns only)
+    summary_hdr = [Paragraph("Total Participants", wrap_hdr_style),
+                   Paragraph("Completed", wrap_hdr_style)]
+    summary_vals = [str(kpis.get("total", "N/A")), str(kpis.get("completed", "N/A"))]
+    tbl1 = Table([summary_hdr, summary_vals], colWidths=[3.5*inch, 3.5*inch])
+    tbl1.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#64748b')),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
@@ -708,7 +698,41 @@ async def export_cohort_pdf(request: dict):
         ('TOPPADDING', (0,0), (-1,-1), 8),
         ('BOTTOMPADDING', (0,0), (-1,-1), 8),
     ]))
-    story.append(kpi_table)
+    story.append(tbl1)
+    story.append(Spacer(1, 8))
+
+    # Table 2 — domain scores (one column per domain, 3 rows: header, user avg, client avg)
+    if domain_scores:
+        sess1_label = setup.get("sess1") or "User Interview"
+        sess2_label = setup.get("sess2") or "Client Conversation"
+        dom_names = [ds["domain"] for ds in domain_scores]
+        n_dom = len(dom_names)
+        dom_col_w = (7.0 / n_dom) * inch
+        dom_hdr_row = [Paragraph(dn, wrap_hdr_style) for dn in dom_names]
+        user_row  = [str(ds.get("user_avg", "N/A"))   for ds in domain_scores]
+        client_row = [str(ds.get("client_avg", "N/A")) for ds in domain_scores]
+        tbl2_data = [
+            dom_hdr_row,
+            user_row,
+            client_row,
+        ]
+        tbl2 = Table(tbl2_data, colWidths=[dom_col_w]*n_dom)
+        tbl2.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#64748b')),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 9),
+            ('FONTNAME', (0,1), (-1,-1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,1), (-1,-1), 11),
+            ('TEXTCOLOR', (0,1), (-1,-1), colors.HexColor('#0f172a')),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ]))
+        story.append(tbl2)
     story.append(Spacer(1, 16))
 
     # ── Completion Status Chart ──

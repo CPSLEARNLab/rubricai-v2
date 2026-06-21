@@ -229,6 +229,30 @@ def determine_flags(scores_dict):
     return (True, "; ".join(reasons)) if reasons else (False, "")
 
 
+# ── SIMULATION PART EXTRACTOR ─────────────────────────────────
+USER_MARKER_A   = "You're about to begin the customer interview"
+USER_MARKER_B   = "Thank you so much for doing this simulation"
+CLIENT_MARKER_A = "I'm now going to switch roles and play the owner of"
+CLIENT_MARKER_B = "Thank you so much for participating in this simulation"
+
+def extract_simulation_part(text, session_type):
+    if session_type == "user_interview":
+        start_marker, end_marker = USER_MARKER_A, USER_MARKER_B
+    else:
+        start_marker, end_marker = CLIENT_MARKER_A, CLIENT_MARKER_B
+
+    start_idx = text.find(start_marker)
+    end_idx   = text.find(end_marker)
+
+    if start_idx == -1 or end_idx == -1:
+        print(f"  WARNING: simulation markers not found for [{session_type}] — using full transcript")
+        return text
+
+    # include the end marker itself
+    end_idx += len(end_marker)
+    return text[start_idx:end_idx]
+
+
 # ── EVALUATE SESSION ──────────────────────────────────────────
 def evaluate_session(
     transcript, participant_id, session_type,
@@ -244,7 +268,7 @@ def evaluate_session(
         return None
 
     rubric_section = extract_indicator_sections(rubric_text, selected_indicators)
-    transcript_section = str(transcript)
+    transcript_section = extract_simulation_part(str(transcript), session_type)
     context_block = build_context(setup_data)
     session_label = "User Interview" if session_type == "user_interview" else "Client Conversation"
 
@@ -258,6 +282,12 @@ def evaluate_session(
     print(f"  [{session_label}] {participant_id} — {len(selected_indicators)} indicators")
 
     scoring_guide_block = f"\nSCORING GUIDE (scenario-specific level anchors — use to calibrate scores):\n{scoring_guide}\n" if scoring_guide and scoring_guide.strip() else ""
+
+    full_transcript_str = str(transcript)
+    full_transcript_block = (
+        f"\nFULL TRANSCRIPT (pre/post simulation context for reflection indicators only):\n{full_transcript_str}\n"
+        if full_transcript_str != transcript_section else ""
+    )
 
     prompt = f"""You are an expert educational assessor for a university research lab.
 Evaluate this student's {session_label} transcript against the rubric below.
@@ -273,6 +303,7 @@ RUBRIC LEVEL DESCRIPTORS (score STRICTLY against these — not general impressio
 {rubric_section}
 {scoring_guide_block}
 STUDENT TRANSCRIPT:
+NOTE: For indicators related to self-reflection, growth mindset, confidence calibration, or post-simulation learning, also consider evidence from any pre/post simulation sections if present.
 {transcript_section}
 
 SCORING RULES:
@@ -282,7 +313,7 @@ SCORING RULES:
 - quotes: 1 short verbatim quote ([] if none found)
 - If transcript lacks sufficient evidence, score 1 and state why briefly
 - summary: 1-2 sentence overview of overall performance
-
+{full_transcript_block}
 Return ONLY valid JSON:
 {{
   "scores": {{
